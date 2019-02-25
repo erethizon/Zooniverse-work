@@ -1,0 +1,135 @@
+---
+title: "Manifest Maker"
+output: html_notebook
+---
+## Introduction
+In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the [zooniverse](http://www.zooniverse.org).  It is fairly easy to get a column of file names into a .csv by just copying from the file folder and pasting directly to excel.  However, our game cameras are set to take pictures in bursts of 3 shots - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation.  To do so, the manifest structure requires that the second, third and 4th columns include the file names for the first, second and third images of the set, respectively. (The first column is for a row number).Thus, to simplify our lives, we need some scripts that will take a data frame of a single column of file names imported from a csv and create a data frame that takes the first file name and every third thereafter for the "image 1" row, the 2nd file name and every third thereafter as the "image 2" row, and the third file name and every third thereafter as the "image 3" row.  This output can then be modified further in R or directly exported as a .csv.
+## Step 1. Set up the workspace and read in data.
+Set up the workspace
+```{r}
+rm(list = ls())#clears the workspace
+library(dplyr) #turns on dplyr
+library(stringr)#for dealing with strings
+filepath<-("~/Desktop/Allphotos")
+```
+Now read in the data.  **You may need to change this code, depending on where the file containing the image names is held.**
+
+```{r}
+library(readr)
+DF <- read.csv("~/Dropbox/Zooniverse_work/test.csv")
+#file with single colum of file names
+```
+
+## Step 2. Manipulate the DF in the required way
+### A. Subset the DF by camera number and then use file times to group images that occur together (cameras were set for bouts of 3 shots)
+Sometimes the camera does not get three shots, or one photo is damaged, etc.  In this case, if we just worked with the whole DF, we would have a frame shift and group images that don't belong together. 
+
+#### 1. Subset the DF by camera
+Cameras are identified by the first two digits before the hyphen. So we need a way to determine how many different patterns we have in the 2 digits before the hyphen.
+
+Now extract the first portion of the filenames
+
+```{r}
+Firstpart<-substr(DF$FileName, start = 1, stop = 3)
+
+```
+Now convert to factor so we can get levels
+```{r}
+Firstpart<-as.factor(Firstpart)
+
+```
+Now assign camera numbers to a variable
+```{r}
+Cameras<-levels(Firstpart)
+
+```
+
+Now extract the filenames from each camera into a separate character variable.  
+```{r}
+for (i in 1:length(Cameras)){
+ 	nam <- paste0("Camera_", Cameras[i])
+ 	output<-DF %>% filter(str_detect(FileName, Cameras [i]))
+ assign(nam, output)
+ rm(output)
+}
+#this works, but I can't seem to get rid of the hyphen after the number in the name.
+#something to fix later
+
+```
+
+#### 2. Determine which pictures go together.  
+Now we need to know, for each camera, which images go together (were taken within 2 minutes of each other).Let's use a modification of the TEAM library f.separate function.
+
+We need to look at a picture, check the time, and compare it to the next picture. If their times are w/in 2 minutes (or some threshold), group the image names.  If not, do not group them.  Then compare to the next file. Use folder "Test" on desktop to see if we can make it work with a smaller number of files.
+
+
+
+##### A. Determine how to view file info.
+
+
+## Step 3. Now select image names from each of the datasets.
+Start by getting a list of the dataframe names I wish to use so that I can loop 
+through them.
+```{r}
+DFnames<-names(Filter(isTRUE, eapply(.GlobalEnv, is.data.frame)))
+#now get rid of the DF data frame from the list of names
+remove<-"DF"
+DFnames <-DFnames[! DFnames %in% remove]
+#great!
+```
+Vector<-c(1:21) #created var called vector with numbers 1 to 21
+VL<-length(Vector)
+VL3<-VL/3
+#now try to select every 3rd var and put into new column called Image1
+
+Image1<-Vector[seq(1, length(Vector), 3)]
+Image1
+Image2<-Vector[seq(2, length(Vector), 3)]
+Image3<-Vector[seq(3, length(Vector), 3)]
+#now combine into data frame
+DF<-as.data.frame(cbind(Image1, Image2, Image3))
+
+Select image names for each DF
+For each data frame of image names frome each camera, select every 3 images that are created within 1 minute of one another and store each in new vectors as Image1, Image2, and Image3.
+```{r}
+#create the first data frame which you will then append to with rbind
+MyVector<-as.vector(paste0(DFnames[1],"$Filename"))
+MyVector<-eval(as.name(MyVector))
+	Image1<-Vector[seq(1, length(Vector), 3)]
+	Image2<-Vector[seq(2, length(Vector), 3)]
+	Image3<-Vector[seq(3, length(Vector), 3)]
+	Rownums<-seq(1:length(Image1))
+	#now create the Df
+	Images<-as.data.frame(cbind(Rownums, Image1, Image2, Image3))
+#now do for rest of data frames of image names
+for (i in 2:length(DFnames)){
+	Vector<-paste0(DFnames[i], "$Filename")
+	Image1<-Vector[seq(1, length(Vector), 3)]
+	Image2<-Vector[seq(2, length(Vector), 3)]
+	Image3<-Vector[seq(3, length(Vector), 3)]
+	Rownums<-seq(1:length(Image1))
+	#now combine into data frame
+DF1<-as.data.frame(cbind(Rownums, Image1, Image2, Image3))
+MainDF<-rbind(Images, DF1)
+#this works!
+}
+
+
+```
+Image1<-Vector[seq(1, length(Vector), 3)]
+Image2<-Vector[seq(2, length(Vector), 3)]
+Image3<-Vector[seq(3, length(Vector), 3)]
+
+#now combine into data frame
+DF1<-as.data.frame(cbind(Rownums, Image1, Image2, Image3))
+#this works!
+
+This worked, but if the number of file names is not evenly divisible by 3, it will fill the last row by recycling numbers from the start.  I will fix this later, but for now, just be aware and delete them as appropriate.
+
+### C. Now write the output
+If you want to have the new data frame as output, use this code. **You may wish to change the filepath.**
+```{r}
+write.csv(DF1, file = paste0(filepath,"/","Manifest.csv"))
+```
+
+
