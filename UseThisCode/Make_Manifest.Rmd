@@ -1,0 +1,76 @@
+---
+title: "Image Pre-processing 2: Create the Manifest"
+output: html_notebook
+---
+## Introduction
+In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the [zooniverse](http://www.zooniverse.org).  Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or *event*.  
+
+The zooniverse manifest structure requires that the second, third and 4th columns include the file names for the first, second and third images of the set, respectively. (The first column is for a row number).Thus, to simplify our lives, we need some scripts that will take the csv produced from "Extract_Image_Metadata.Rmd" and create a second data frame that assigns each image to the proper column of the proper event. This output can then be modified further in R or directly exported as a .csv.
+
+###Before you begin
+In order to run this code, you will need to have the following in place:
+
+* The csv file that resulted from running Extract_Image_Metadata.Rmd
+
+
+
+### Step 1. Set up the workspace and read in data.
+Set up the workspace
+```{r}
+rm(list = ls())#clears the workspace
+library(dplyr) #turns on dplyr
+```
+Now read in the data.  **You may need to change this code, depending on where the file containing the image names is held.**
+
+```{r}
+library(readr)
+DF <- read_csv("/Users/ebar/Dropbox/R/Zooniverse_work/Images_by_event.csv") #file with single colum of file names
+#now order the DF
+DF<-DF[order(DF$DateTimeOriginal),]#THIS IS KEY
+```
+### Step 2. Assign images to proper columns
+####Part A 
+Begin by creating an empty data frame to receive the data
+```{r}
+Runs<-unique(DF$Event) #determines the number of events in the DF
+Manifest<-data.frame(Num = integer(length(Runs)),
+                     Image1 = character(length(Runs)),
+                     Image2 = character(length(Runs)),
+                     Image3 = character(length(Runs)), 
+                     #CamNum = integer(length(Runs)),#consider adding a way to record a column with camera number for manifest
+                     stringsAsFactors = FALSE)
+```
+
+####Part B 
+Loop through DF, read the event number, and assign image names to the proper columns of Manifest
+
+```{r}
+
+#i = 1
+for (i in 1: length(Runs)) {
+       Group <-filter(DF, Event == Runs[i])
+       Group<-Group[order(Group$DateTimeOriginal),]
+        Fill_num<-length(Group$Event)
+        z<-1
+          if (Fill_num == 3){
+            Manifest$Image1[i]<-Group$FileName[z]
+            Manifest$Image2[i]<-Group$FileName[z+1]
+            Manifest$Image3[i]<-Group$FileName[z+2]
+            }
+          else {
+               Manifest$Image1[i]<-Group$FileName[z]
+               Manifest$Image2[i]<-Group$FileName[z+1]
+               Manifest$Image3[i]<-"NA"
+               }
+}
+
+Manifest[,1]<-c(1:13)
+  
+
+```
+###Step 3
+Save the resulting manifest
+```{r}
+write.csv(Manifest, file = paste0("manifest_",Sys.Date(), ".csv"))
+```
+

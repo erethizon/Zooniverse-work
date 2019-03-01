@@ -1,0 +1,97 @@
+---
+title: "Manifest Maker"
+output: html_notebook
+---
+## Introduction
+In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the [zooniverse](http://www.zooniverse.org).  Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or *event*.  
+The zooniverse manifest structure requires that the second, third and 4th columns include the file names for the first, second and third images of the set, respectively. (The first column is for a row number).Thus, to simplify our lives, we need some scripts that will take the csv produced from "Extract_Image_Metadata.Rmd" and create a second data frame that assigns each image to the proper column of the proper event. This output can then be modified further in R or directly exported as a .csv.
+### Step 1. Set up the workspace and read in data.
+Set up the workspace
+```{r}
+rm(list = ls())#clears the workspace
+library(dplyr) #turns on dplyr
+library(stringr)#for dealing with strings
+```
+Now read in the data.  **You may need to change this code, depending on where the file containing the image names is held.**
+
+```{r}
+library(readr)
+DF <- read_csv("/Users/ebar/Dropbox/R/Zooniverse_work/Images_by_event.csv") #file with single colum of file names
+#now order the DF
+DF<-DF[order(DF$DateTimeOriginal),]#THIS IS KEY
+```
+### Step 2. Assign images to proper columns
+####A 
+Begin by creating an empty data frame to receive the data
+```{r}
+Runs<-unique(DF$Event) #determines the number of events in the DF
+Manifest<-data.frame(Num = integer(length(Runs)),
+                     Image1 = character(length(Runs)),
+                     Image2 = character(length(Runs)),
+                     Image3 = character(length(Runs)), 
+                     #CamNum = integer(length(Runs)),#consider adding a way to record a column with camera number for manifest
+                     stringsAsFactors = FALSE)
+```
+
+####B 
+Loop through DF, read the event number, and assign image names to the proper columns of Manifest
+
+```{r}
+
+#i = 1
+for (i in 1: length(Runs)) {
+       Group <-filter(DF, Event == Runs[i])
+       Group<-Group[order(Group$DateTimeOriginal),]
+        Fill_num<-length(Group$Event)
+        z<-1
+          if (Fill_num == 3){
+            Manifest$Image1[i]<-Group$FileName[z]
+            Manifest$Image2[i]<-Group$FileName[z+1]
+            Manifest$Image3[i]<-Group$FileName[z+2]
+            }
+          else {
+               Manifest$Image1[i]<-Group$FileName[z]
+               Manifest$Image2[i]<-Group$FileName[z+1]
+               Manifest$Image3[i]<-"NA"
+               }
+}
+
+Manifest[,1]<-c(1:13)
+ #I think this works! Now find an easy way to look and test for truth.   
+
+```
+####C
+Test
+First, reduce columns in DF for ease of reading
+```{r}
+DF1<-DF[, c(4,16, 29 ,87)]
+```
+Now summarize the length (number of pics) per event to see if they correspond to the Manifest
+```{r}
+SummedDF<-DF1 %>% group_by (Event) %>% summarise (
+     NumPerEvent = length(Event)
+)
+```
+The resulting SummedDF indicates the number of images in each event; the number (e.g. 2, 3, 1) should be the same as the number of files entered for Image1, Image2 and Image3 for the row in the Manifest.
+
+Now spot check: Look at the Manifest and randomly choose an image name.  Look up that image name in the DF and see if the event pairing looks correct.
+```{r}
+#randomly select an image from the Manifest; use sample() from base R
+
+MySample<-sample(Manifest$Image2, 5,replace = F)
+MySample
+
+```
+Testing sample
+```{r}
+Col1<-c(1:10)
+Col2<-c(11:20)
+Col3<-c(21:30)
+TestDF<-data.frame(cbind(Col1, Col2, Col3))
+```
+Now see if you can sample from just Col2 and Col3
+```{r}
+mySamp<-TestDF[sample(2:nrow(TestDF),5, replace = F),]
+```
+
+
