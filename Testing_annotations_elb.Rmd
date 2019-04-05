@@ -1,0 +1,231 @@
+---
+title: "Flattening our Zooniverse files"
+output: html_notebook
+---
+##Overview
+Output from classifications on the [Zooniverse](https://zooniverse.com) come encoded in *JSON format*.  While most of the columns are straightforward to interpret, two critical columns are not.  The first is the annotation column.  Within it are the species identification and the answers to all of the questions for each event. Likewise, the subject_data column contains all of the information from the manifest, such as the forest type, photo batch, camera number, and forest name.  It would be good to be able to pull all of this information.
+
+Processing the data requires four steps:
+1. Isolating the data from a single workflow number and workflow version so that all fields are compatible.
+
+2. Parsing the annotations column.
+
+3. Parsing the subject_data column.
+
+4. Adding newly generated columns from the subject data to the data frame.
+
+Some of these process are accomplished using scripts provided on the zooniverse github page, modifited to fit our data.  Other processes we coded ourselves. Some of that is noted below.
+
+### Turn on packages and bring in the data and r scripts
+We need to load desired packages and also source the zooniverse scripts so that they will run. 
+
+```{r}
+rm(list = ls())
+library(tidyjson)
+library(magrittr) #allows piping beyond tidyverse
+library(jsonlite)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(lubridate)
+
+source(file = "flattening_script.R")
+source(file = "flattening_functions.R")
+#this two calls load the zooniverse functions to the workspace; note that if it is not in the same folder as this code, you need to specify the file path.
+```
+###Step 1. Isolating the data to a single workflow and version number
+Clean the classification data to focus on just the workflow number and version that you want.
+
+To do so, you need to define variables that will be used in the run_json_parsing function. They need the names as below.
+
+REQUIRED VARIABLES: You NEED TO DEFINE THESE or the script could break.
+jdata <- "character"
+survey_id <- "character"
+workflow_id_num <- numeric
+workflow_version_num <- numeric (e.g. 45.01). you need to include the entire version (even if it's 45.00) so you'd have workflow_version_num<-45.01
+
+Define required variables:
+```{r}
+jdata <- character()
+survey_id <- character()
+workflow_id_num <- numeric()
+workflow_version_num <- numeric()
+
+```
+####Specify Project
+Give the project a name and id the classifications file
+```{r}
+project_name <- "NoCoWild"
+classifications_file <- "/Users/ebar/Dropbox/R/Zooniverse_work/UseThisCode/Testing_annotations.csv"
+```
+####Examine data
+```{r}
+jdata <- read.csv(classifications_file, stringsAsFactors = F)
+```
+#### Set project-specific details
+```{r}
+check_workflow(jdata) %>% View
+workflow_id_num <- 9599
+workflow_version_num <- 123.17
+```
+#### Limit to relevant workflow id and version
+```{r}
+jdata <- jdata %>% filter(., workflow_id == workflow_id_num, workflow_version == workflow_version_num)
+```
+###Step 2. Parse the annotations column
+
+#### Identify task-specific details. 
+(Notes from whoever wrote this originally for Zooniverse: These variable names are important, because I haven't figured out how to define them in the function call; there's some weird referencing. I don't know. The function definitions and scripts could be improved, but things seem to generally work)
+
+Examine the data to see how it is structured 
+```{r}
+jdata$annotations[1] %>% prettify
+```
+Use the output (in the console window) from the last call to properly fill these out:
+```{r}
+#View_json(jdata)
+survey_id <- c("T0")#determine from prettify
+single_choice_Qs <-  c("choice", "HOWMANY", "SNOWDEPTH", "YOUNGPRESENT", "ANTLERSPRESENT", "PRECIPITATIONRAINSNOW") #determine from prettify call
+single_choice_colnames  <-  c("choice","Number", "SnowDepth", "Young","Antlers", "Precipitation")#determine from View_json call
+multi_choice_Qs <- c("WHATBEHAVIORSDOYOUSEE")#determine from View_json call
+multi_choice_colnames <- c("behavior")#determine from View_json call
+
+```
+
+#### Now flatten the file
+We now flatten the Annotations column by calling the code from the flattening_functions file. 
+
+**If you want to combine multiple workflows or multiple tasks before aggregating, this is the time to do it.**
+
+```{r}
+flattened <- run_json_parsing(data = jdata) #requires flattening_functions file to be in same folder and sourced.
+#this only works with tidyjson installed.  Need a fix.
+View(flattened)
+```
+Issue - this result gives more rows that the original data file - so we need to figure out why.  I think it is because there are several events for which there was more than one choice made.  Let's check.
+
+```{r}
+Check<-flattened %>% group_by(subject_ids) %>% summarise(
+     Count = length(choice)
+)
+```
+
+
+
+
+
+###Step 3. Parse the subjects column
+#### Examine subject_data details.
+Examine one of the JSON subject_data entries using "prettify"
+
+```{r}
+jdata$subject_data[1] %>% prettify
+```
+R returns the first element from the subject_data column.  
+
+###Convert subject_data to list
+Next we need to tell R that jdata$subject_data should be a list (currently is is viewed as character data). We are going to make a list called subjects:
+
+```{r}
+subjects<-purrr::map(jdata$subject_data, jsonlite::fromJSON, flatten = T)
+#this brought in the subject_data as a list where it now shows up in the environment
+
+```
+Now let's try to get some of the information from that list; for example, we'd like to know the habitat, forest type, camera number and sd card number from the subject data:
+
+```{r}
+flattened$ForestType<-sapply(subjects, function(x)x[[1]]$`!ForestType`, simplify = T)
+flattened$ForestName<-sapply(subjects, function(x)x[[1]]$`#ForestName`, simplify = T)
+flattened$Image1<-sapply(subjects, function(x)x[[1]]$`Image1`, simplify = T)
+flattened$Image2<-sapply(subjects, function(x)x[[1]]$`Image2`, simplify = T)
+flattened$Image3<-sapply(subjects, function(x)x[[1]]$`Image3`, simplify = T)
+flattened$Camera<-sapply(subjects, function(x)x[[1]]$`#CamNumber`, simplify = T)
+flattened$SDCard<-sapply(subjects, function(x)x[[1]]$`#SDCardNum`, simplify = T)
+flattened$PhotoBatch<-sapply(subjects, function(x)x[[1]]$`!Batch`, simplify = T)
+flattened$Class_Round<-sapply(subjects, function(x)x[[1]]$`!Round`, simplify = T)
+
+```
+Problem: Subjects treatment results in the same # of rows as jdata, but flattened has several more rows. Thus, they won't join into on big data table.  Trying to figure out why:
+
+```{r}
+flattened %>% group_by(subject_ids) %>% summarise(
+     total = length(subject_ids)
+)
+
+flattened %>% group_by(classification_id) %>% summarise(
+     total = length(classification_id)
+)
+```
+
+The number of rows in the original data frame is the same as the number of classifications (in this case 3648. The number of subjects in the original data frame is much lower (in this case 931).  Still not sure where the 3660 is coming from.
+ 
+Try to crack this function and see what each step is doing
+flatten_to_task <- function(json_data) {
+     flat_to_task <- json_data %>% 
+          select(., subject_ids, user_name, classification_id, workflow_version, annotations) %>%
+          as.tbl_json(json.column = "annotations") %>%
+          gather_array(column.name = "task_index") %>% # really important for joining later
+          spread_values(task = jstring("task"), task_label = jstring("task_label"), value = jstring("value"))
+     return(flat_to_task)
+}  
+
+
+```{r}
+debug(run_json_parsing)
+run_json_parsing(jdata)
+```
+
+```{r}
+
+flat_to_task <- jdata %>% 
+          select(., subject_ids, user_name, classification_id, workflow_version, annotations) 
+
+#reduced the data frame to 5 from 14 variables
+
+flat_to_task %>% as.tbl_json(json.column = "annotations") 
+
+#made annotations column into a json table?
+          
+flat_to_task %>%gather_array(column.name = "task_index")
+
+
+# really important for joining later
+          spread_values(flat_to_task$annotations, task = jstring("task"), task_label = jstring("task_label"), value = jstring("value"))
+     
+
+```
+
+
+Now make a csv of the day we need to export
+
+```{r}
+FullData<-as.data.frame(cbind(jdata$classification_id, jdata$user_name, jdata$workflow_id, jdata$workflow_version, ForestType, ForestName, Image1, Image2, Image3, Camera, SDCard, PhotoBatch, Class_Round))
+```
+
+Now Save
+```{r}
+write.csv(FullData, paste0(classifications_file, "-subjects.csv"), row.names = F)
+```
+
+Now look for how many "nothing here" answers
+
+```{r}
+NH<-filter(flattened, choice == "NOTHINGHERE")
+
+unique(flattened$task_index)
+```
+We need a more manigable data set to try to figure this problem out.  Let's randomly select 50 rows into a new DF
+
+```{r}
+
+Testing_annotations<-jdata[sample(nrow(jdata), 50),]
+```
+
+Export that DF for working on
+```{r}
+write.csv(Testing_annotations, file = "Testing_annotations.csv",  row.names = F)
+```
+
+
+
+

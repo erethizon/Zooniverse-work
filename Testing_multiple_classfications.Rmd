@@ -1,0 +1,218 @@
+---
+title: "Data Analysis"
+output: html_notebook
+---
+
+Goal- get species richness for each camera in each forest, then get average species richness for the entire forest for those cameras with standard deviation, then average of 3 forests of each type.
+
+Install necessary packages and import the data set. Data is output from 'join_mess-NoCoWild.Rmd' 
+```{r}
+rm(list = ls())
+library(dplyr)
+library(magrittr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+
+library(readr)
+DF <- read_csv("~/Dropbox/R/Zooniverse_work/dummy_flattened_to_clean.csv")
+```
+
+# note that the total_species count reported here isn't accurate when users report the same species multiple times. 
+
+```{r}
+head(DF)
+```
+
+Summarize the data and create a new column that has a count of how many unique identifications, and tallies how many people identified each new photo.
+```{r}
+DF %>% summarise(n_distinct(subject_ids), n_distinct(classification_id)) 
+
+
+New<- DF %>% 
+     group_by(subject_ids) %>% # count up the number of distinct classification IDs
+     mutate(., num_class = n_distinct(classification_id)) %>% #because there will be >1 row per classification_id if >1 spp
+     arrange(., subject_ids, classification_id) 
+New %>% View
+```
+
+#Need to Identify behavior columns, how many columns, etc. Let's get data input out of the way now.
+Not sure yet how this helps us...
+```{r}
+howmany_column <- "Number" # this is a special kind of single-answer column. 
+multi_answer_cols <- names(select(ungroup(DF), starts_with("behavior"))) #the flattening script handily appends this to the front of behavior columns.
+yesno_columns <- NULL # no single-answer columns here, other than how many, which gets special treatment.
+```
+
+
+
+# NOTE THAT YOU NEED TO PROVIDE THE MAPPING LATER ON IF YOU USE A HOW MANY COLUMN. I CAN'T SEEM TO GET THE FUNCTION TO ACCEPT VARIABLES. 
+# howmany_map_from <- c("1", "2", "35", "610", "MANY")
+# howmany_map_to <- c("1", "2", "4", "8", "20") # need to provide a numeric map (at least until I can write a function to get medians for ordered factors)
+# lookup_list <- as.character("'1' = '1', '2' = '2', '35' = '4', '610' = '8', 'MANY' = '20'")
+
+
+
+########### CLEAN UP MULTIPLE VOTES PER USER ###############
+# number of different species should match the number of submissions per user.
+# research team needs to decide how to combine duplicate entries per user. 
+# Easiest thing is to just take the first submission, though most robust thing is probably to combine the answers.
+# Note: this will be difficult without knowing what is a count, etc. Research teams can create their own, or, hoping it's relatively rare, just drop the extras.
+
+ 
+```{r}
+check_spp_counts <- New %>% 
+     group_by(subject_ids, classification_id) %>% 
+     mutate(., num_species = n_distinct(choice), check_num_spp = n())
+```
+
+Check for duplicates. Need to use function Zooniverse people created
+```{r}
+check_dups <- function(New) {
+     # This function groups by subject and classification ID (which is per user/classification), 
+     # then checks whether the number of unique species == the number of submissions. 
+     # So, if a person selects lion & zebra, num_species and check_num_species will both = 2. 
+     # If a person selects lion, 1, standing and lion, 1, sitting, then num_species = 1 and check_num_species = 2.
+     # Note that this error will not be possible in future projects.
+     # Also note that we can't actually combine answers in a generalized way, 
+     # because "how many" is actually categorical and the values differ for all projects.
+     bad_counts <- New %>% 
+          group_by(subject_ids, classification_id) %>% 
+          mutate(., num_species = n_distinct(choice), check_num_spp = n()) %>%
+          filter(., num_species != check_num_spp) 
+     check <- bad_counts %>% nrow() %>% as.numeric()
+     
+     if(check > 0) {
+          print("You've got duplicates, dammit")
+          return(bad_counts)
+     } else if(check == 0) {
+          print("You've got no duplicates! Well done!")
+     }
+}
+
+```
+
+```{r}
+bad_counts <- check_dups(New)
+```
+If this is working, it appears that there are no duplicates.
+
+# can just run this - sets cleaned_classifications to the correct dataset, dropping duplicates where necessary
+```{r}
+if(is.null(dim(bad_counts))) {
+     print("No duplicates to drop")
+     cleaned_classifications <- check_spp_counts
+} else {
+     # NOTE that I don't know how you combine different answers for a single choice questions, thus, this just takes the FIRST anser
+     print(paste("Dropping", dim(check_dups(raw_data))[1], "duplicate classifications"))
+     
+     cleaned_classifications <- raw_data %>% group_by(subject_ids, classification_id) %>% 
+          mutate(., num_species = n_distinct(choice)) %>%
+          group_by(., subject_ids, classification_id, num_class, num_species, choice) %>% 
+          #summarise_all(., sum) # adds up counts for duplicates of spp, only works if everything is numeric
+          summarise_all(., first) # takes the first record per user per species classification
+}
+
+
+
+check_dups(cleaned_classifications)
+
+```
+
+
+####################### AGGREGATE! #######################
+
+ 
+##### SUBJECT-LEVEL METRICS
+
+```{r}
+subject_metrics <- cleaned_classifications %>% ungroup %>%
+     group_by(., subject_ids) %>%
+     mutate(., num_votes = n(), # if a  user ids >1 spp, there will be more votes than classifications
+            diff_species = n_distinct(choice)) # count the total number of different species reported by different users, for pielous score
+
+glimpse(subject_metrics)
+```
+
+
+# Calculate aggregate number of species per subject by taking the median number of species reported across all volunteers, and tie back to subject metrics.
+```{r}
+species_counts <- cleaned_classifications %>% ungroup %>%
+     group_by(subject_ids, classification_id) %>%
+     summarise(total_spp_by_user = mean(num_species)) %>% #Need to select only one row per classification_id, then summarise across those. 
+     summarise(., agg_num_species = round(median(total_spp_by_user), 0))#aggregate species count, which is median rounded up
+     glimpse(species_counts)
+
+cleaned_classifications <- left_join(subject_metrics, species_counts) %>% ungroup
+glimpse(cleaned_classifications)
+```
+
+
+
+####### SPECIES-LEVEL METRICS
+
+### For each species, aggregate counts and behavior votes. ###
+# okay, so there's a difference between the proportion of VOTES and the proportion of classifications. 
+# If some users ID >1 species in a single species image, there will be more votes than classifications. 
+# The opposite is true for when some users only ID 1 species in a multi-species image.
+
+
+#this provides one row per species ID per classification. We actually don't really need all the grouping variables... could just pull them apart and save for later.
+```{r}
+grouped_classifications <- cleaned_classifications %>% 
+     select(., -num_species) %>% # these aren't relevant
+     group_by(., subject_ids, num_class, num_votes, agg_num_species, diff_species, choice) # fields at subject level or higher
+```
+
+
+#Tally the votes for each species ID'd within a subject
+```{r}
+species_votes <- grouped_classifications %>% 
+     # for every species within a subject, aggregate votes.
+     summarise(., votes = n_distinct(classification_id)) %>% #count up the number of votes per species choice
+     mutate(propvote = votes/sum(votes), #calculate proportion of votes for this species
+            propclass = votes/num_class) #calculate proportion of classifications for this species
+```
+
+
+# # Tally votes for factor questions with single YES OR NO answers. STILL NEED to create a function to calculate proportions for different answer types.
+# question_votes <- grouped_classifications %>% 
+#      summarise_at(., .cols = yesno_columns, funs(calc_yes))
+
+Need to use 'calc_prop' function defined by Zooniverse people
+```{r}
+calc_prop <- function(x, NA_action = "non_answer") {
+     #NA_action can be non_answer or zero, indicating how NAs should be treated. By default, they are treated as non_answers
+     # sum(x)/length(x)  
+     
+     if (NA_action == "non_answer") {
+          prop<- sum(x[!is.na(x)])/length(x[!is.na(x)]) # Remove NAs from both sum and length
+          prop <- ifelse(is.finite(prop), prop, NA)          
+     } else if (NA_action == "zero") {
+          prop<- sum(x, na.rm = T)/length(x) #NAs count towards total length, but not towards the sum of 1s.
+     }
+     
+}
+```
+
+
+# Tally votes for the different behaviors (or other multi-choice feature) for each species.
+```{r}
+multi_answer_votes <- grouped_classifications %>%
+     summarise_at(., .vars = multi_answer_cols, funs(calc_prop))
+
+howmany_votes <- grouped_classifications %>%
+     mutate(Number = dplyr::recode(as.character(Number), '1' = '1', '2' = '2', '35' = '4', '610' = '8', 'MANY' = '20')) %>%
+     mutate(Number = as.numeric(Number)) %>%
+     summarise_at(., .vars = howmany_column, funs(med_count = median, min_count = min, max_count = max))
+```
+
+
+# Okay, so the full dataset has all of the aggregate votes per species. The only thing left is to select the top n species for each subject.
+```{r}
+all_data <- full_join(species_votes, howmany_votes) %>% full_join(., multi_answer_votes)
+
+write.csv(all_data, file = "cleaned_data.csv")
+```
+
+

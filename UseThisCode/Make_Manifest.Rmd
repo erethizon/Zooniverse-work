@@ -24,7 +24,7 @@ Now read in the data.  **You may need to change this code, depending on where th
 
 ```{r}
 library(readr)
-DF <- read_csv("/Users/ebar/Dropbox/R/Zooniverse_work/Images_by_event.csv") #file with single colum of file names
+DF <- read_csv("/Users/ebar/Dropbox/R/Zooniverse_work/Round1/Images_by_event.csv") #file with single colum of file names
 #now order the DF
 DF<-DF[order(DF$DateTimeOriginal),]#THIS IS KEY
 ```
@@ -64,13 +64,13 @@ for (i in 1: length(Runs)) {
                }
 }
 
-Manifest[,1]<-c(1:13)
+Manifest[,1]<-c(1:length(Runs))
   
 
 ```
 ###Step 3
 Save the resulting manifest
 ```{r}
-write.csv(Manifest, file = paste0("manifest_",Sys.Date(), ".csv"))
+write.csv(Manifest, file = paste0("/Users/ebar/Dropbox/R/Zooniverse_work/Round1/R1B1manifest_",Sys.Date(), ".csv"))
 ```
 

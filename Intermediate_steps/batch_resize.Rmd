@@ -1,0 +1,80 @@
+---
+title: "Testing image resizing"
+output: html_notebook
+---
+#need to fix this - it works but takes c. 1 min per image, and we will have thousands of images.  Try to filter the images by size and type, so that it only works on the large files (it seems to be working on all files)
+
+Think about something like
+file.info("filepathincludingfilenameand extension")
+which gives
+                    size isdir mode               mtime               ctime               atime  uid  gid
+data/ullyses.txt 1573151 FALSE  664 2015-06-01 15:25:55 2015-06-01 15:25:55 2015-06-01 15:25:55 1008 1008
+Then extract the column called size:
+
+file.info("filepathincludingfilenameand extension")$size
+[1] 1573151
+#code to resize all of the images in a folder  
+
+#turn on stuff that we need
+
+```{r}
+rm(list = ls())
+library(magick)
+library(tools)
+```
+
+#create varible that is path to directory with photos
+
+```{r}
+#filepath<-"//ourslu/classes/Barthelmess/Mammalogy18/Game Cameras/Allphotos"
+filepath<-"e:/UseTheseOnes 2019/Round 1/Deciduous/Beaver Creek/Card 4"
+#filepath<-"~/Desktop/TestBatch"
+```
+
+#now make a variable called "files" that is a list of all the filenames
+
+```{r}
+files<-list.files(filepath)
+```
+
+
+#create loop to go through files
+#identify which files in the folder are jpgs
+
+```{r}
+jpgs<-which(file_ext(files)=="JPG")
+```
+#now create list of files to use
+
+```{r}
+useFiles<-files[1:length(jpgs)]
+```
+
+
+#set file size threshold
+```{r}
+threshold<-900000
+```
+
+#now loop through all the jpgs and resize if needed
+
+```{r}
+for (i in 1:length(jpgs)){
+	#create a magick object
+	tempfile<-image_read(paste0(filepath, "/", useFiles[i]))
+	#now convert the info in the object to a dataframe
+	image_data<-image_info(tempfile)
+	#now get the filesize info from it
+	filesize<-image_data[,6]
+	#now evaluate file size and resize if smaller than a threshold
+	if (filesize > threshold) {
+		image_resize(tempfile, geometry_size_percent(75));
+	#now write the new resized file to the folder
+	image_write(tempfile,path = paste0(filepath,"/",useFiles[i]), format = "jpeg")
+	} else {image_write(tempfile,path = paste0(filepath,"/",useFiles[i]), format = "jpeg")
+	}
+	i<-i+1
+}
+```
+
+

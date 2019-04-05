@@ -1,0 +1,135 @@
+---
+title: "Image Pre-processing 1: Assign images to events"
+output: html_notebook
+---
+##Introduction
+This is the R code needed to use the metadata from a folder of images to compare the image time stamps and group images into their respective "events."
+
+An event is a set of pictures taken within a time threshold.  We set our cameras to take up to 3 pictures in a bout, and set them with a 1 minute delay before they can take more pictures, so we can use 1 minute as our threshold.
+
+###Before you begin
+
+In order to run this code, you will need to have the following in place:
+
+* A folder with a set of images (and only images) in it.
+* A csv file made using *exiftool* that has date/time metadata from all of the photos in the folder
+
+
+###Step 1
+Set up the workspace
+```{r}
+rm(list = ls())
+library(dplyr)
+library(readr)
+library(lubridate)
+```
+###Step 2
+
+First identify the folder containing the images and create a variable that is the list of file names. 
+
+```{r}
+#filepath<-(path to hard drive)
+filepath<- ("/Users/ebar/Dropbox/R/Zooniverse_work/Round1")#may have to redirect to wherever the pictures are stored.
+
+
+#filepath<-("/Volumes/External Drive/Dropbox/R/Zooniverse_work/Small batch") #from mac pro
+
+files<-list.files(filepath) #creates variable files as list of filenames
+```
+###Step 3 
+Now we need to pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line.  We should see if we can get *exiftool* installed on the HPC. It works to run exiftool within R (library(exiftool)), but it is VERY VERY SLOW. 
+
+```{r}
+
+#library(readr) if not called at top of code
+Meta <- read.csv("/Users/ebar/Dropbox/R/Zooniverse_work/Round1/Round1.csv") #obvioulsly, put correct file name here
+
+files<-Meta$FileName
+files<-as.character(files)
+```
+
+###Step 4
+Now that we have the metadata, we can see that the DateTimeOriginal column came in as a factor.  Let's change it with lubridate.  Note that then a very important step is to ORDER the data frame in terms of date/time.  If you fail to order the data frame, when you compare dates/times you will get incorrect output.
+
+```{r}
+#library(lubridate)if not called at top of code 
+Meta$DateTimeOriginal<-ymd_hms(Meta$DateTimeOriginal)
+Meta<-Meta[order(Meta$DateTimeOriginal),]#THIS IS KEY
+```
+Now see if we can calculate the time differences among the photos
+
+```{r}
+MyDiffs<-diff(Round1_Batch1$DateTimeOriginal)#returns what looks like an empty variable in the environment window
+MyDiffs<-as.numeric(MyDiffs) #now it shows up as numeric data
+
+#Optional: now see if we can convert seconds to minutes, minutes to hours, hours to days
+#MyDiffs_Minutes<-MyDiffs/60
+#MyDiffs_Hours<-MyDiffs_Minutes/60
+#MyDiffs_Days<-MyDiffs_Hours/24
+
+#MyDiffs_Minutes
+```
+Problem: Some of the images have the incorrect Date/Time due to camera resetting to 2013.  We are going to extract those and make them Round1_Batch2.csv and get all others for Round1_Batch1.csv so we can get something to zooniverse.
+```{r}
+Round1_Batch1<-filter(Round1_Batch1, DateTimeOriginal == "2013-01-01")
+
+Round1_Batch1$DateTimeOriginal<-as_date(Round1_Batch1$DateTimeOriginal)
+
+Dump<-which(Round1_Batch1$DateTimeOriginal == "2013-01-01")
+```
+
+Monkeying around trying to extract by date
+```{r}
+Meta$Sort<-Meta$DateTimeOriginal
+Meta$Sort<-as.character(Meta$Sort)
+Meta$Sort<-as.factor(Meta$Sort)
+levels(Meta$Sort)
+Round1_Batch2<-filter(Meta, Sort <"2018-01-12 12:34:51")
+Round1_Batch1<-filter(Meta, Sort > "2017-12-31 18:16:49")
+length(Round1_Batch1$Sort)+length(Round1_Batch2$Sort)
+write.csv(Round1_Batch1, file = "/Users/ebar/Dropbox/R/Zooniverse_work/Round1/R1B1.csv")
+write.csv(Round1_Batch2, file ="/Users/ebar/Dropbox/R/Zooniverse_work/Round1/R1B2.csv" )
+filepath
+```
+
+
+
+
+###Step 5 
+This seems to be working!  Now let's see if we can assign images to events using this logic.  We will need to set the time threshold (default is 1 minute).
+
+```{r}
+thresh<-60 #set a threshold for number of seconds between events
+ev<-vector()
+L <- length(Round1_Batch1$DateTimeOriginal)
+
+for(i in 1:length(Round1_Batch1$DateTimeOriginal)){
+     interval<-diff(Round1_Batch1$DateTimeOriginal)
+     #now convert to minutes
+     
+     ev<-1; Event_num<-numeric() #created new var called ev and set to 1, created empty numeric vector called Event_num. Event_num will store the assigned event for each image
+   }
+cond<- interval > thresh #sets condition for assigning to a new event where minutes corresponds to thresh
+   
+   for(i in 1:(L-1)){
+      if(!cond[i]) ev<-ev else ev<-ev+1
+      Event_num<-c(Event_num,ev)
+   }
+  Event<-c(1,Event_num)
+
+```
+Now append the Event to the data frame csv to capture the event assignment for each image.
+```{R}
+Round1_Batch1$Event<-Event
+
+test<-tail(Round1_Batch1, 60)
+```
+###Step 6
+Now export Meta for use in assigning images to "image numbers" in the zooniverse manifest style
+```{r}
+write.csv(Round1_Batch1, "/Users/ebar/Dropbox/R/Zooniverse_work/Round1/Images_by_event.csv")
+```
+
+
+
+  

@@ -1,0 +1,39 @@
+---
+title: "Working on flattened aggregated data"
+output: html_notebook
+---
+We are struggling with some of our classified zooniverse data.  The workflow is to download the data, flatten it to obtain the annotation and subject data, and then run it through the aggregation scripts to get a level of summary data.  The challenge is then dealing with the subjects in that data set for which there is more than 1 species identification for the same image. For example, if you have a subject (set of 3 images) and one person in a classification calls it a T.rex and another person calls it a stegasaurus, you need to make a final determination of what the species is. IN our current workflow, (9599, version 123.17) each subject can be classified up to 5 times.
+
+Several scenarios can be present:
+
+1. There is a majority of "votes" for one species, in which case the choice with the highest number of votes or the highest proproportion of votes would be the best assignment of the species. 
+     Example: Subject is classified 5 times, assigned 3 species, as follows:
+     Gray squirrel: 3 votes, red squirrel: 1 vote, flying squirrel 1:vote
+2. There is the same number of votes for each species choice.
+     Example 1: Subject is classified four times, twice as a gray squirrel and          twice as a flying squirrel.
+     Example 2: Subject is classfied 4 times, each time as a separate species: 1 vote for gray squirrel, 1 vote for porcupine, 1 vote for red squirrel, 1 vote for "nothing here".
+     
+3. There are multiple choices made for the subject, but none are correct:
+     Example: The subject is a gray squirrel, but one user calls it "nothing here" and the other user calls it "something here"; neither correctly identifies it.
+     
+It would be nice if we could somewhat automate the process of dealing with these subjects and letting the user input the correct information.
+
+I'm imagining a workflow in which you 1)go to a subject id then 2) see if it has > 1 diff species from the aggregation file.
+     If there is only 1 species, make no changes.
+     If there is > 1 species, 
+          Open the three images on the screen and display the list of choices              that were made
+          
+          Allow the user to then select the correct choice
+          
+          
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
