@@ -1,0 +1,48 @@
+---
+title: "Separate photo data according to forest site"
+output: html_notebook
+---
+
+```{r}
+rm(list=ls())
+library(tidyr)
+library(dplyr)
+```
+
+Import R1B2.csv dataset 
+```{r}
+library(readr)
+DF <- read_csv("~/Desktop/R1B2 copy.csv")
+```
+
+Now sort by FileName
+```{r}
+NewData<- group_by(DF, FileName)
+View(NewData)
+```
+
+Once sorted, separate by FileName to create a new column that contains just the CameraNumber_SDcard_Forest 
+```{r}
+Firstpart<- substr(DF$FileName, start = 1, stop = 8)
+Firstpart<- as.factor(Firstpart)
+levels(Firstpart)
+DF$Firstpart<-Firstpart
+```
+
+Create a new data frame for each grouping
+```{r}
+Don<- filter(DF,Firstpart == "27_08_IM")
+WH<- filter(DF, Firstpart == "02_07_WH")
+SH<- filter(DF, Firstpart == "03_05_SH")
+DE<- filter(DF, Firstpart == "08_23_DE")
+DEG<- filter(DF, Firstpart == "28_15_DE")
+BC<- filter(DF, Firstpart == "30_20_BC")
+WHI<- filter(DF, Firstpart == "31_06_WH")
+
+```
+
+Export each new data frame into a csv file
+```{r}
+write.csv(Don, file = "Don.csv")
+```
+

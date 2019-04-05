@@ -28,7 +28,8 @@ library(lubridate)
 First identify the folder containing the images and create a variable that is the list of file names. 
 
 ```{r}
-filepath<- ("/Users/ebar/Dropbox/R/Zooniverse_work/Small batch")#may have to redirect to wherever the pictures are stored.
+filepath<-(path to hard drive)
+#filepath<- ("/Users/ebar/Dropbox/R/Zooniverse_work/Small batch")#may have to redirect to wherever the pictures are stored.
 
 
 #filepath<-("/Volumes/External Drive/Dropbox/R/Zooniverse_work/Small batch") #from mac pro
@@ -41,7 +42,7 @@ Now we need to pull in the image metadata.  It was generated and saved as a .csv
 ```{r}
 
 #library(readr) if not called at top of code
-Meta <- read.csv("/Users/ebar/Dropbox/R/Zooniverse_work/test.csv") #obvioulsly, put correct file name here
+Meta <- read.csv("/Users/ebar/Dropbox/R/Zooniverse_work/Intermediate_steps/test.csv") #obvioulsly, put correct file name here
 
 ```
 
