@@ -1,0 +1,22 @@
+---
+title: "Chapter 5 Zooniverse Modifications"
+output: html_notebook
+---
+
+The goal of this R Notebook is to reorder the data frame we get from Zooniverse to match the format from Wild.ID. This will allow us to use the functions from Chapter 5 to calculate naïve occupancy, RAI, and species accumulation.
+
+Load necessary packages and clear the environment
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyr)
+library(readr)
+library(chron) #works with chronological objects like dates and times
+library(reshape) #restructures and aggregates data in a flexible way
+library(vegan) #ecological analysis
+library(plotrix) #visualize circular data
+library(ggplot2) #producing graphics
+library(maptools) #produce maps using GIS layers
+```
+

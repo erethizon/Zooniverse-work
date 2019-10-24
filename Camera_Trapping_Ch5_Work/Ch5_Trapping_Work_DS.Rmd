@@ -1,0 +1,55 @@
+---
+title: "Camera Trapping Ch5 Work"
+output: html_notebook
+---
+
+Goal - The goal of this code is to work through the code from Ch5 of Camera Trapping notebook and see how it applys to our data.  
+
+Potential errors: Our datasets are formatted differently, but we will see if the two codes work.
+
+Lets begin:
+```{r}
+#Basic parameters
+getwd()
+rm(list = ls())
+library(dplyr)
+library(magrittr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(vegan)
+library(reshape)
+library(reshape2)
+
+#Source the Camera Trapping Ch5 functions 
+source("TEAM library 1.7.R")
+
+#Load the datasets 
+cleaned_data <- read.csv("/Users/Donovan/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/cleaned_data.csv")
+Final_data <- read.csv("/Users/Donovan/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/Final_data.csv")
+joinedData <- read.csv("/Users/Donovan/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/joinedData_dates.csv")
+Sifted_data <- read.csv("/Users/Donovan/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/Sifted_data.csv")
+
+#Quick overview of the datasets
+glimpse(joinedData)
+
+```
+
+##Species Accumulation curve 
+```{r}
+#From the Ch5 code
+#Add sampling event 
+Data$Sampling.Event = 2019
+
+#Source the edited codes:
+source("acc.curve_function.R")
+source("f.matrix.creator_function.R")
+
+accumulation <- acc.curve1(Data,2019)
+```
+
+
+
+
+

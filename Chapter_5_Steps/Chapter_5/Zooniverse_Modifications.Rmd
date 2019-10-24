@@ -1,0 +1,92 @@
+---
+title: "Chapter 5 Zooniverse Modifications"
+output: html_notebook
+---
+
+The goal of this R Notebook is to reorder the data frame we get from Zooniverse to match the format from Wild.ID. This will allow us to use the functions from Chapter 5 to calculate naïve occupancy, RAI, and species accumulation.
+
+Load necessary packages and clear the environment
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyr)
+library(readr)
+library(lubridate)
+library(chron) #works with chronological objects like dates and times
+library(reshape) #restructures and aggregates data in a flexible way
+library(vegan) #ecological analysis
+library(plotrix) #visualize circular data
+library(ggplot2) #producing graphics
+library(maptools) #produce maps using GIS layers
+```
+
+Now load the latest version of the data frame. This was modified from a previous R Notebook called 'cleaning_dataKA.Rmd'. The file is called 'ImageDates2.csv'
+```{r}
+DF <- read.csv("~/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/ImageDates2.csv")
+```
+
+There are unnecessary columns in this data frame, so let's remove those. 
+```{r}
+DF1<-subset(DF, select= c("Image1","DateTimeOriginal","Camera_Trap_Days", "Date_Out", "Date_Checked","choice"))
+```
+
+Source functions from Wild.ID chapters in console
+```{r}
+source("TEAM library 1.7.R")
+```
+
+Get DF1 to match format for 'data' in the Wild.ID chapter
+```{r}
+#Change column headings 
+names(DF1)<-c("Sampling.Unit.Name", "td.photo", "ndays", "Start.Date", "End.Date", "bin")
+```
+
+Let's try replicating the td.photo column twice and then take away date in one column and time in the other.
+```{r}
+n<-2
+DF2<-cbind(DF1, replicate(n,DF1$td.photo))
+
+```
+
+Correct Dates in DF1
+```{r}
+DF2$Start.Date<- ymd(DF2$Start.Date)
+DF2$End.Date<- ymd(DF2$End.Date)
+DF2$td.photo<- mdy_hm(DF2$td.photo)
+```
+
+Change column heading to get 'Photo.Date' and 'Photo.Time'
+```{r}
+names(DF2)<-c("Sampling.Unit.Name", "td.photo", "ndays", "Start.Date", "End.Date", "bin", "Photo.Date", "Photo.Time")
+```
+
+Get rid of dates from 'Photo.Time' and times from 'Photo.Date'
+```{r}
+DF2$Photo.Date<-separate(DF2, Photo.Date, sep = "[^[1/1/19 10:52:alnum:1/1/19]]+", remove = TRUE, convert = FALSE, extra = "drop")
+```
+
+
+Add sampling year column because Wild.ID requires it
+```{r}
+list<- DF2
+Sampling.Event<- rep("2019.01", length(list))
+DF3<-cbind(list,Sampling.Event)
+```
+
+
+Calculate events per species and camera trap
+Run threshold for 1 day (thresh=1440)
+```{r}
+events_dd<- event.sp(dtaframe=DF2, year= 2019.01, thresh=1440)
+
+#Need to split td.photo into Photo.Date and Photo.Time columns as well to satisfy requirements for event.sp function. 
+
+#Problem with td.photo first few dates and Start.Date. First photo captured before deployment date. May need to look into how I merged the image dates. Could also be a problem with the camera. 
+```
+
+
+
+
+
+

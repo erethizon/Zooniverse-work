@@ -1,0 +1,137 @@
+---
+title: "Chapter 5 Steps"
+output: html_notebook
+---
+
+The purpose of this R Notebook is to work through the steps in Chapter 5 from the Wild.ID people. I will be using their original code to determine the purpose for each step and in what format the input and output are. This will tell us how we need to generate our data from Zooniverse to be able to run through their functions.
+
+First, clear the environment, install the packages, and source the script 'TEAM library 1.7.R' This contains the necessary functions. Make sure you set the right working directory. Supporting materials came from the book's publishing page.
+```{r}
+rm(list=ls())
+
+library(readr)
+library(dplyr)
+library(tidyr)
+library(chron) #works with chronological objects like dates and times
+library(reshape) #restructures and aggregates data in a flexible way
+library(vegan) #ecological analysis
+library(plotrix) #visualize circular data
+library(ggplot2) #producing graphics
+library(maptools) #produce maps using GIS layers
+
+#Needed to run this in the console. Also needed to change directories in the console.
+source("TEAM library 1.7.R")
+
+```
+
+#Load their data
+```{r}
+team_data<- read.csv(file= "/Users/kateandy/Dropbox/Zooniverse_work/Chapter_5_Steps/Chapter_5/teamexample.csv", sep= ",", stringsAsFactors=F)
+```
+
+#Add taxonomic attributes 
+(Class, Order, Family), sourced from IUCN database (.csv file found in appendix 5.5)
+```{r}
+iucn.full<- read.csv ("/Users/kateandy/Dropbox/Zooniverse_work/Chapter_5_Steps/Chapter_5/IUCN.csv", sep =",", h=T)
+
+iucn<- iucn.full[, c("Class", "Order", "Family", "Genus", "Species")]
+team<- merge(iucn, team_data, all.y=T) 
+```
+
+#Run function that elaborates raw data 
+Creates 19 column data frame, dates in correct format, creates two new time objects, ID for each photo, and binomial name of species (bin)
+```{r}
+data<- fix.dta(team)
+```
+
+#Check Data
+```{r}
+#Check headings
+names(data)
+
+#Extract first year (2009) and mammals only 
+yr2009<- data[data$Sampling.Event == "2009.01" & data$Class == "MAMMALIA",]
+
+#List unique binomial names
+unique(yr2009$bin)
+
+#Remove humans from the list
+data<- droplevels(data[data$bin!= "Homo sapiens",])
+
+#Check number of camera traps 
+unique(yr2009$Sampling.Unit.Name)
+#Shows 58 camera traps deployed 
+
+#Check start and end dates
+unique(yr2009$Camera.Start.Date.and.Time)
+#comes in format yy-mm-dd hh:mm:ss
+
+```
+
+#Derive Sampling Effort
+```{r}
+#Create table with list of cameras, start and end dates, and number of days camera traps worked
+
+camera_days<-cam.days(data, 2009.01)
+#This is similar to the Cam_Trap_Days output I made in cleaning_dataKA.Rmd
+
+#Write table as .txt file
+write.table(camera_days, file= "camera_days_2009.txt", quote=F, sep="\t")
+
+#Derive minimum, maximum, median and quartiles of dates and sampling effort
+summary(camera_days[,2:4])
+
+```
+
+#Calculate events for each species and camera trap. 
+Run threshold for 1 hour (thresh=60) and 1 day (thresh=1440)
+```{r}
+events_hh<- event.sp(dtaframe=data, year=2009.01, thresh=60) #This generates a table with number of species detected per camera hourly. 
+events_dd<- event.sp(dtaframe=data, year= 2009.01, thresh=1440) #This generates a table with the number of species detected per camera daily. This is similar to the table Donovan generated.
+
+#Write the results to the previous step in a .txt file
+write.table(events_hh, file="events_hh.txt", quote=F, sep="\t")
+write.table(events_dd, file="events_dd.txt", quote=F, sep="\t")
+
+
+#Write summary table
+events_hh_sepcies<- colSums(events_hh)
+write.table(events_hh, file="events_hh_species.txt", quote=F, sep="\t")
+events_hh_sepcies
+#The number of detections for some of the species are off by a few in this table compared to the table in the chapter. Not sure where the source of the error is. Could be a difference in original data I'm using.
+
+events_dd_sepcies<- colSums(events_dd)
+write.table(events_dd, file="events_dd_species.txt", quote=F, sep="\t")
+events_dd_sepcies
+```
+
+#Calculate RAI_hh and RAI_dd
+Can do this step in Excel: divide events by sampling effort and multiply by 100 because most values are <0
+
+#Calculate Naïve Occupancy 
+Naïve Occupancy- proportion of camera trap stations where the species has been captured relative to the total number of camera stations sampled.
+Can indicate distribution of species 
+Not true occupancy measurement- more where species is more or less likely to be detected
+
+We need to calculate the number of camera trap sites where events are greater than zero and divide the value by 58 (the total number of camera trap sites)
+
+function 'f.matrix.creator' makes a table for each species with cameras on rows and days on columns 
+
+function 'naive' yields naïve occupancy values for each species
+```{r}
+mat<-f.matrix.creator(yr2009)
+naive_occu_2009<-naive(mat)
+write.table(naive_occu_2009, file="naive_occu_2009.txt", sep="\t", quote=F, row.names=F)
+#Output is a two column table with species and naïve occupancy (for each species) as a decimal. If multiply by 100, can get percentage of camera trap stations where species was detected
+
+```
+
+#Calculate Species Accumulation
+```{r}
+accumulation<-acc.curve(data, 2009.01)
+write.table(accumulation, file="accsp_2009.txt", quote=F, sep="\t")
+#Error here, something is going wrong in their function. Can step through piece by piece with their subfunctions, but cannot run code straight through.
+
+```
+
+Next Steps: manipulate our data set from Zooniverse to replicate the set-up from Wild.ID. This will allow us to run through the code easily. 

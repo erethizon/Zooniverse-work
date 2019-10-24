@@ -1,0 +1,161 @@
+---
+title: "Camera Trapping Ch5 Work"
+output: html_notebook
+---
+
+Goal - The goal of this code is to work through the code from Ch5 of Camera Trapping notebook and see how it applys to our data.  
+
+Potential errors: Our datasets are formatted differently, but we will see if the two codes work.
+
+Lets begin:
+```{r}
+#Basic parameters
+getwd()
+rm(list = ls())
+library(chron)
+library(plotrix)
+library(maptools)
+library(dplyr)
+library(magrittr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(vegan)
+library(reshape)
+library(reshape2)
+
+#Source the Camera Trapping Ch5 functions 
+source("TEAM library 1.7.R")
+
+#Load the datasets 
+cleaned_data <- read.csv("/Users/kateandy/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/cleaned_data.csv")
+Final_data <- read.csv("/Users/kateandy/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/Final_data.csv")
+joinedData <- read.csv("/Users/kateandy/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/joinedData_dates.csv")
+Sifted_data <- read.csv("/Users/kateandy/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/Sifted_data.csv")
+ImageDates2 <- read.csv("~/Dropbox/Zooniverse_work/Camera_Trapping_Ch5_Work/ImageDates2.csv")
+
+#Quick overview of the datasets
+glimpse(joinedData)
+
+```
+
+acc.curve
+```{r}
+Sampling.Event<- rep("2019.01", length(ImageDates2$Image1))
+ImageDates3<- cbind(Sampling.Event, ImageDates2)
+
+ImageDates3$Date_Out<- as.Date(ImageDates3$Date_Out)
+ImageDates3$Date_Out<- replace(ImageDates3$Date_Out, "0018", "2018")
+
+SpecAccum<- acc.curve(ImageDates3, year = 2019.01)
+```
+
+acc.curve function
+```{r}
+function(dtaframe, year) {
+    require(reshape)
+    require(vegan)
+    yr <- dtaframe[dtaframe$Sampling.Event == year, ]
+    mat <- f.matrix.creator(yr)
+    pr <- melt(mat)
+    colnames(pr) <- c("Image1", "DateTimeOriginal", "value", "species")
+    ev.sp <- cast(na.omit(pr), Image1 + DateTimeOriginal ~ species, sum)
+    ac <- specaccum(ev.sp[, -c(1:2)], method = "random", permutations = 100)
+    mt <- data.frame(ac$sites, ac$richness, ac$sd)
+    colnames(mt) <- c("Camera.trap.days", "species", "sd")
+    return(mt)
+}
+
+```
+
+
+
+f.matrix.creator function
+```{r}
+function(data){
+	#results object
+	res<-list()
+	
+	#get the dimensions of the matrix
+	
+	#list if sanpling units
+	cams<-unique(data$Sampling.Unit.Name)
+	cams<-sort(cams)
+	rows<-length(cams)
+	#start and end dates of sampling periods
+	min<-min(data$Date_Out)
+	max<-max(data$Date_Checked)
+	cols<-max-min+1
+	
+	#sampling period
+	date.header<-seq(from=min,to=max, by=1)
+	mat<-matrix(NA,rows,cols,dimnames=list(cams,as.character(date.header)))
+	
+	#for all cameras, determine the open and close date and mark in the matrix
+	Date_Out<-tapply(as.character(data$Date_Out),data$Image1,unique)
+	Date_Checked<-tapply(as.character(data$End.Date),data$Image1,unique)
+	
+	#outline the sampling periods for each camera j
+	for(j in 1:length(Date_Out)){
+		#for each camera beginning and end of sampling
+		low<-which(date.header==Date_Out[j])
+		hi<-which(date.header==Date_Checked[j])
+		indx<-seq(from=low,to=hi)
+		mat[j,indx]<-0
+		}
+		mat.template<-mat
+				#get the species
+		species<-unique(data$choice)
+		#construct the matrix for each species i
+		for(i in 1:length(species)){
+			indx<-which(data$choice==species[i])
+			#dates and cameras when/where the species was photographed
+			dates<-data$DateTimeOriginal[indx]
+			cameras<-data$Image1[indx]
+			dates.cameras<-data.frame(dates,cameras)
+			#unique combination of dates and cameras 
+			dates.cameras<-unique(dates.cameras)
+			#fill in the matrix
+			for(j in 1:length(dates.cameras[,1])){
+				col<-which(date.header==dates.cameras[j,1])
+				row<-which(cams==dates.cameras[j,2])
+				mat[row,col]<-1
+				}
+			mat.nas<-is.na(mat)
+			sum.nas<-apply(mat.nas,2,sum)
+			indx.nas<-which(sum.nas==rows)
+			if(length(indx.nas)>0){
+			mat<-mat[,-indx.nas]
+			}
+	
+			res<-c(res,list(mat))
+			#return the matrix to its original form
+			mat<-mat.template
+			}
+			
+		names(res)<-species
+		#res<-lapply(res,f.dum)
+		res
+	
+	}
+```
+
+
+##Species Accumulation curve 
+```{r}
+#From the Ch5 code
+#Add sampling event 
+ImageDates2$Sampling.Event = 2019
+
+#Source the edited codes:
+source("acc.curve_function.R")
+source("f.matrix.creator_function.R")
+
+accumulation <- acc.curve1(Data,2019)
+```
+
+
+
+
+
