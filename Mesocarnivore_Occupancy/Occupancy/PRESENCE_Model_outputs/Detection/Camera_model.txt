@@ -1,0 +1,6 @@
+psi(.),P(Camera Model) 
+                                         estimate    std.error
+A1   psi.a1                           :   1.338731    0.709341
+B1   P[109].b1                        :  -2.075774   -1.#IND00
+B2   P[1].Bushnell_                   :  -1.354744   -1.#IND00
+B3   P[1].Browning                    :  -0.719495   -1.#IND00

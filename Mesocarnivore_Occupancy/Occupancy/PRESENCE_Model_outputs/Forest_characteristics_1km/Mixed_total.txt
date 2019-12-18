@@ -1,0 +1,7 @@
+psi(Mixed + Total),p(.)
+
+                                          estimate    std.error
+A1   psi.a1                           :  41.415386  365624.868277
+A2   psi.Per_Mixed_forest_1km         :   4.853346  257054.934716
+A3   psi.Per_Total_forest_1km         :  20.236468  204012.197040
+B1   P[109].b1                        :  -3.291098    0.148554

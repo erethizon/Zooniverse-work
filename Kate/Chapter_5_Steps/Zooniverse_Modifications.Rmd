@@ -1,0 +1,175 @@
+---
+title: "Chapter 5 Zooniverse Modifications"
+output: html_notebook
+---
+
+The goal of this R Notebook is to reorder the data frame we get from Zooniverse to match the format from Wild.ID. This will allow us to use the functions from Chapter 5 to calculate naïve occupancy, RAI, and species accumulation.
+
+Load necessary packages and clear the environment
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyr)
+library(readr)
+library(lubridate)
+library(chron) #works with chronological objects like dates and times
+library(reshape) #restructures and aggregates data in a flexible way
+library(vegan) #ecological analysis
+library(plotrix) #visualize circular data
+library(ggplot2) #producing graphics
+library(maptools) #produce maps using GIS layers
+```
+
+Now load the latest version of the data frame. This was modified from a previous R Notebook called 'cleaning_dataKA.Rmd'. The file is called 'ImageDates2.csv'
+```{r}
+DF <- read.csv("~/Dropbox/Zooniverse_work/Gus.csv")
+```
+
+There are unnecessary columns in this data frame, so let's remove those. 
+```{r}
+DF1<-subset(DF, select= c("Image1","DateTimeOriginal","Camera_Trap_Days", "Date_Out", "Date_Checked","choice"))
+```
+
+Source functions from Wild.ID chapters in console
+```{r}
+source("TEAM library 1.7.R")
+```
+
+Get DF1 to match format for 'data' in the Wild.ID chapter
+```{r}
+#Change column headings 
+names(DF1)<-c("Sampling.Unit.Name", "td.photo", "ndays", "Start.Date", "End.Date", "bin")
+```
+
+Let's try replicating the td.photo column twice and then take away date in one column and time in the other.
+```{r}
+n<-2
+DF2<-cbind(DF1, replicate(n,DF1$td.photo))
+
+```
+
+Correct Dates in DF1
+```{r}
+DF2$Start.Date<- ymd(DF2$Start.Date)
+DF2$End.Date<- ymd(DF2$End.Date)
+DF2$td.photo<- ymd_hms(DF2$td.photo)
+```
+
+Change column heading to get 'Photo.Date' and 'Photo.Time'
+```{r}
+names(DF2)<-c("Sampling.Unit.Name", "td.photo", "ndays", "Start.Date", "End.Date", "bin", "Photo.Date", "Photo.Time")
+```
+
+Get rid of dates from 'Photo.Time' and times from 'Photo.Date'
+```{r}
+#Gets rid of time from 'Photo.Date'
+DF2$Photo.Date<- ymd_hms(DF2$Photo.Date)
+DF2$Photo.Date<-as.Date(DF2$Photo.Date, format = "%y/%m/%d")
+
+#Gets rid of date from 'Photo.Time'
+DF2$Photo.Time<- ymd_hms(DF2$Photo.Time)
+DF2$Photo.Time<- strftime(DF2$Photo.Time, format = "%H:%M:%S")
+#Puts in time that is 5 hours behind the td.photo time. Perhaps need to account for time zone. 
+```
+
+
+Add sampling year column because Wild.ID requires it
+```{r}
+list<- DF2
+Sampling.Event<- rep("2019.01", length(DF2$Sampling.Unit.Name))
+DF3<-cbind(list,Sampling.Event)
+```
+
+
+Calculate events per species and camera trap
+Run threshold for 1 day (thresh=1440)
+```{r}
+#Need to load the plyr function for this to work. Was getting an error before that said all arguments must be named.
+library(plyr)
+events_dd<- event.sp(dtaframe=DF3, year= 2019.01, thresh=1440)
+
+#Problem with td.photo first few dates and Start.Date. First photo captured before deployment date. May need to look into how I merged the image dates. Could also be a problem with the camera. 
+```
+
+
+event.sp <- function(dtaframe, year, thresh) {
+    # thresh= minutes
+    require(reshape)
+    hr <- f.separate.events(dtaframe, thresh)
+    sel <- subset(hr, select = c(Sampling.Event, Sampling.Unit.Name, Photo.Date, bin, grp))
+    del <- unique(sel)
+    dta <- rename(del, c(bin = "value"))
+    yrsel <- dta[dta$Sampling.Event == year, ]
+    events <- cast(yrsel, Sampling.Unit.Name ~ value, length)
+}
+
+
+
+#I changed the function in here to say DF3 instead of data, but I don't think this will impact future tests if we use the original function.
+f.separate.events<-function(DF3,thresh){
+	
+	#e.data<-by(DF3$td.photo,DF3$Sampling.Unit.Name,f.separate,thresh)
+  indx<-which(is.na(DF3$td.photo))
+  if(length(indx)>0)
+    data<-DF3[-indx,]
+  e.data<-f.separate(DF3$td.photo,thresh)
+#e.data<-data.frame(grp=unlist(e.data))
+data.frame(DF3,grp=paste(DF3$Sampling.Event,".",DF3$Sampling.Unit.Name,".",e.data,sep=""))
+
+	}
+
+
+f.separate<-function(data,thresh){
+	
+	#diff(data$td.photo)
+	l<-length(data)
+	interval<-diff(data)#abs(c(data[2:l],NA)-data)
+	interval<-interval*1440 #convert to minutes
+	interval<-as.numeric(interval)
+  ev<-1;res<-numeric()
+	cond<-interval>thresh #about 5 minutes in between events
+	for(i in 1:(l-1)){
+		if(!cond[i]) ev<-ev
+		else ev<-ev+1
+		res<-c(res,ev)
+		
+		}
+	c(1,res)
+	}
+
+Write Summary Table
+```{r}
+events_dd_sepcies<- colSums(events_dd)
+events_dd_sepcies
+```
+
+Naïve Occupancy
+```{r}
+mat<-f.matrix.creator(DF3)
+naive_occu_2019<-naive(mat)
+```
+
+Species Accumulation
+```{r}
+accumulation<-acc.curve(DF3, 2019.01)
+
+#This worked!!
+```
+
+Plot Species Accumulation Curve
+```{r}
+ggplot(accumulation, aes(x=Camera.trap.days, y=species)) +
+     geom_line(aes(y=species-sd), colour = "grey50", linetype= "dotted")+
+     geom_line(aes(y=species+sd), colour = "grey50", linetype= "dotted")+
+     geom_line()
+
+```
+
+Calculate Species Activity
+```{r}
+activity_24h<- events.hours(DF3)
+
+```
+
+

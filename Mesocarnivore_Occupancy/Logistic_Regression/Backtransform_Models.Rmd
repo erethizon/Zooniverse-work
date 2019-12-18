@@ -1,0 +1,126 @@
+---
+title: "Backtransform Models"
+output: html_notebook
+---
+
+The goal of this notebook is to backtransform all the models calculated before 
+
+```{r}
+#Basic parameters 
+rm(list = ls())
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(tidyr)
+library(readr)
+library(confidence)
+
+library(unmarked) # for occupancy models
+library(ggplot2) #for professional plots
+library(plyr) #to manipulate the data such as by filtering
+library(dplyr) #an update of plyr
+library(vegan) # a community ecology package 
+library(AICcmodavg) #for AICc ranking
+
+#load the datasets 
+#1km factors
+Crops <- read_csv("/Users/Donovan/Dropbox/Zooniverse_work/Fisher_Occupancy/PRESENCE_Model_outputs/Surrounding_characteristics_1km/Crops.csv")
+Total_1km <- read_csv("/Users/Donovan/Dropbox/Zooniverse_work/Fisher_Occupancy/PRESENCE_Model_outputs/Forest_characteristics_1km/Total.csv")
+
+#0.33km factors
+Residential <- read_csv("/Users/Donovan/Dropbox/Zooniverse_work/Fisher_Occupancy/PRESENCE_Model_outputs/Surrounding_characteristics_033km/Residential.csv")
+Total_033km <- read_csv("/Users/Donovan/Dropbox/Zooniverse_work/Fisher_Occupancy/PRESENCE_Model_outputs/Forest_characteristics_033km/Total.csv")
+
+
+```
+
+
+```{r}
+#Backtransform the models
+Total_Forest <- read_csv("Fisher_Occupancy/PRESENCE_Model_outputs/Forest_characteristics_1km/Total.csv")
+
+
+myodds <- function(logit){
+     odds <- exp(logit)
+     return(odds)
+    
+}
+
+myprob <- function(myodds){
+     prob <- myodds / (1+myodds)
+     return(prob)
+}
+
+
+####Example### 
+Forest_characteristics_1km_odds <- myodds(Crops_Residential_Roads$X4) 
+Forest_characteristics_1km_probs <- myprob(Forest_characteristics_1km_odds)
+
+View(Forest_characteristics_1km_probs)
+View(Forest_characteristics_1km_odds)
+
+#####Backtransform 1km buffer 
+#Surrounding characteristics (Crops)
+Crops_1km_odds <- myodds(Crops$X4) 
+Crops_1km_probs <- myprob(Crops_1km_odds)
+
+View(Crops_1km_odds)
+View(Crops_1km_probs)
+
+
+#Forest characteristics (Total Forest)
+TF_1km_odds <- myodds(Total_1km$X4) 
+TF_1km_probs <- myprob(TF_1km_odds)
+
+View(TF_1km_odds)
+View(TF_1km_probs)
+
+#####Backtransform 0.33 km buffer 
+#Surrounding characteristics (Residential)
+Residential_033km_odds <- myodds(Residential$X4) 
+Residential_033km_probs <- myprob(Residential_033km_odds)
+
+View(Residential_033km_odds)
+View(Residential_033km_probs)
+
+#Forest characteristics (Total forest) 
+TF_033km_odds <- myodds(Total_033km$X4) 
+TF_033km_probs <- myprob(TF_033km_odds)
+
+View(TF_033km_odds)
+View(TF_033km_probs)
+
+
+
+
+```
+
+
+The next chunk of code was used to determine pearsons correlation coefficients between each of the covarites.  Covariates that were determined significantly correlated were reduced to only 1 covariate to make the model less "bulky".
+
+Creating the correlation matrix:
+```{r}
+#Pearson's correlation determination
+rm(list = ls())
+
+#All covariates
+Cor_1km <- cor(evars_1km, method = "pearson")
+
+#Datasets 
+Forest_characteristics_033km <- read.csv("Data/Forest_characteristics_033km.csv")
+Forest_characteristics_1km <- read_csv("Data/Forest_characteristics_1km.csv")
+Surrounding_characteristics_033km <- read_csv("Data/Surrounding_characteristics_033km.csv")
+Surrounding_characteristics_1km <- read_csv("Data/Surrounding_characteristics_1km.csv")
+
+#Forest characteristics 
+Cor_Forest_1km <- cor(Forest_characteristics_1km, method = "pearson")
+Cor_Forest_033km <- cor(Forest_characteristics_033km, method = "pearson")
+
+#Surrounding characteristics 
+Cor_Surrounding_1km <- cor(Surrounding_characteristics_1km, method = "pearson")
+Cor_Surrounding_033km <- cor(Surrounding_characteristics_033km, method = "pearson")
+
+
+```
+
+

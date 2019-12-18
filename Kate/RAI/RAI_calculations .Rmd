@@ -1,0 +1,39 @@
+---
+title: "Calculating RAI "
+output: html_notebook
+---
+RAI = relative abundance index and is a measure of camera trapping detection rate per species.
+     Definition: At what percent of "events" does the species occur
+     events / species effort 
+     -> events / camera trapping days 
+     
+
+```{r}
+#Basic parameters 
+rm(list=ls())
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(vegan)
+library(reshape2)
+
+#Upload the dataset 
+joinedData <- read_csv("Camera_Trapping_Ch5_Work/joinedData.csv")
+
+#quick overview of the dataset 
+str(joinedData)
+
+#Source the TEAM Network functions 
+source("TEAM library 1.7.R")
+getwd()
+
+```
+
+
+
+
+
+
+
+

@@ -1,0 +1,156 @@
+---
+title: "Chapter 5 Zooniverse Modifications"
+output: html_notebook
+---
+
+The goal of this R Notebook is to reorder the data frame we get from Zooniverse to match the format from Wild.ID. This will allow us to use the functions from Chapter 5 to calculate naïve occupancy, RAI, and species accumulation.
+
+Load necessary packages and clear the environment
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(readr)
+library(lubridate)
+library(chron) #works with chronological objects like dates and times
+library(reshape) #restructures and aggregates data in a flexible way
+library(vegan) #ecological analysis
+library(plotrix) #visualize circular data
+library(ggplot2) #producing graphics
+library(maptools) #produce maps using GIS layers
+```
+
+Now load the latest version of the data frame. This was modified from a previous R Notebook called 'cleaning_dataKA.Rmd'. The file is called 'ImageDates2.csv'
+```{r}
+DF <- read.csv("~/Dropbox/Zooniverse_work/Gus.csv")
+```
+
+There are unnecessary columns in this data frame, so let's remove those. 
+```{r}
+DF1<-subset(DF, select= c("Image1","DateTimeOriginal","Camera_Trap_Days", "Date_Out", "Date_Checked","choice"))
+```
+
+Source functions from Wild.ID chapters in console
+```{r}
+source("TEAM library 1.7.R")
+```
+
+Get DF1 to match format for 'data' in the Wild.ID chapter
+```{r}
+#Change column headings 
+names(DF1)<-c("Sampling.Unit.Name", "td.photo", "ndays", "Start.Date", "End.Date", "bin")
+```
+
+Let's try replicating the td.photo column twice and then take away date in one column and time in the other.
+```{r}
+n<-2
+DF2<-cbind(DF1, replicate(n,DF1$td.photo))
+
+```
+
+Correct Dates in DF1
+```{r}
+DF2$Start.Date<- ymd(DF2$Start.Date)
+DF2$End.Date<- ymd(DF2$End.Date)
+DF2$td.photo<- ymd_hms(DF2$td.photo)
+```
+
+Change column heading to get 'Photo.Date' and 'Photo.Time'
+```{r}
+names(DF2)<-c("Sampling.Unit.Name", "td.photo", "ndays", "Start.Date", "End.Date", "bin", "Photo.Date", "Photo.Time")
+```
+
+Get rid of dates from 'Photo.Time' and times from 'Photo.Date'
+```{r}
+#Gets rid of time from 'Photo.Date'
+DF2$Photo.Date<- ymd_hms(DF2$Photo.Date)
+DF2$Photo.Date<-as.Date(DF2$Photo.Date, format = "%y/%m/%d")
+
+#Gets rid of date from 'Photo.Time'
+DF2$Photo.Time<- ymd_hms(DF2$Photo.Time)
+DF2$Photo.Time<- strftime(DF2$Photo.Time, format = "%H:%M:%S")
+#Puts in time that is 5 hours behind the td.photo time. Perhaps need to account for time zone. 
+```
+
+
+Add sampling year column because Wild.ID requires it
+```{r}
+list<- DF2
+Sampling.Event<- rep("2019.01", length(DF2$Sampling.Unit.Name))
+DF3<-cbind(list,Sampling.Event)
+```
+
+Write csv file to keep as standard data frame to use on other calculations. This will make it easier when I want to quickly recalculate values. 
+```{r}
+write.csv(DF3, file = "masterDF.csv")
+```
+
+
+Calculate events per species and camera trap
+Run threshold for 1 day (thresh=1440)
+```{r}
+#Need to load the plyr function for this to work. Was getting an error before that said all arguments must be named.
+library(plyr)
+events_dd<- event.sp(dtaframe=DF3, year= 2019.01, thresh=1440)
+
+#Problem with one td.photo date and Start.Date. First photo captured before deployment date. May need to look into how I merged the image dates. Could also be a problem with the camera. 
+```
+
+
+Write Summary Table
+```{r}
+events_dd_sepcies<- colSums(events_dd)
+events_dd_sepcies
+```
+
+
+
+
+Calculate Species Activity
+```{r}
+activity_24h<- events.hours(DF3)
+
+```
+
+
+Calculate Jaccard Index
+This currently does not work. Had to calculate by hand in excel.
+```{r}
+Jaccard <- function (x, y) {
+    M.11 = sum(x == 1 & y == 1)
+    M.10 = sum(x == 1 & y == 0)
+    M.01 = sum(x == 0 & y == 1)
+    return (M.11 / (M.11 + M.10 + M.01))
+}
+ 
+input.variables <- data.frame(Q6_01, Q6_02, Q6_03, Q6_04, Q6_05, Q6_06, Q6_07, Q6_08, Q6_09)
+ 
+m = matrix(data = NA, nrow = length(input.variables), ncol = length(input.variables))
+for (r in 1:length(input.variables)) {
+    for (c in 1:length(input.variables)) {
+        if (c == r) {
+            m[r,c] = 1
+        } else if (c > r) {
+            m[r,c] = Jaccard(input.variables[,r], input.variables[,c])
+        }
+    }
+}
+ 
+variable.names = sapply(input.variables, attr, "label")
+colnames(m) = variable.names
+rownames(m) = variable.names   
+         
+jaccards = m
+```
+
+Calculate camera trap days
+```{r}
+sum(DF3$ndays)
+
+CamDays<- DF %>% group_by(Camera) %>% summarise(
+     n_camdays = unique(Camera_Trap_Days)
+)
+```
+

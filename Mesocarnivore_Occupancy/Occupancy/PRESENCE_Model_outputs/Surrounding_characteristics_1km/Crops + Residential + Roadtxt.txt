@@ -1,0 +1,8 @@
+psi(Crops + Residential + Road),p(.)
+
+                                          estimate    std.error
+A1   psi.a1                           :  44.670722   -1.#IND00
+A2   psi.Per_Row_crops_1km            : -16.248491   -1.#IND00
+A3   psi.Per_low_intensity_residentia :   9.340197   -1.#IND00
+A4   psi.Road_density_1km             :  -1.689523   -1.#IND00
+B1   P[109].b1                        :  -3.291098    0.148554

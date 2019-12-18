@@ -1,0 +1,170 @@
+---
+title: "Image Pre-processing 1: Assign images to events"
+output: html_notebook
+---
+##Introduction
+This is the R code needed to use the metadata from a folder of images to compare the image time stamps and group images into their respective "events."
+
+An event is a set of pictures taken within a time threshold.  We set our cameras to take up to 3 pictures in a bout, and set them with a 1 minute delay before they can take more pictures, so we can use 1 minute as our threshold.
+
+###Before you begin
+
+In order to run this code, you will need to have the following in place:
+
+* A folder with a set of images (and only images) in it.
+* A csv file made using *exiftool* that has date/time metadata from all of the photos in the folder
+
+
+###Step 1
+Set up the workspace
+```{r}
+rm(list = ls())
+library(dplyr)
+library(readr)
+library(lubridate)
+```
+###Step 2
+Now we need to pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line.  We should see if we can get *exiftool* installed on the HPC. It works to run exiftool within R (library(exiftool)), but it is VERY VERY SLOW. 
+
+```{r}
+#library(readr) if not called at top of code
+Meta <- read.csv("/Volumes/External Drive/Dropbox/R/Zooniverse_work/Kate/R1B2.csv") 
+#obvioulsly, put correct file name here
+#Meta<-read.csv("/Users/keandy16/Dropbox/Zooniverse_work/Kate/R1B2.csv")
+```
+
+###Step 3
+Now that we have the metadata, we can see that the DateTimeOriginal column came in as a factor.  Let's change it with lubridate.  Note that then a very important step is to ORDER the data frame in terms of date/time.  If you fail to order the data frame, when you compare dates/times you will get incorrect output.
+
+```{r}
+#library(lubridate)if not called at top of code 
+Meta$DateTimeOriginal<-ymd_hms(Meta$DateTimeOriginal)
+#Meta<-Meta[order(Meta$DateTimeOriginal, Meta$FileName),]#THIS IS KEY
+```
+###Step 4
+Need to filter by camera.  First make new camera number variable.
+
+```{r}
+#first make Fielname a chr var
+Meta$FileName<-as.character(Meta$FileName)
+Meta$cam_num<-substr(Meta$FileName, 1, 5) #grabs the first through fifth characters from the file name
+cams<-unique(Meta$cam_num)
+```
+
+Next, create a loop to filter and process by camera
+
+```{r}
+#set some initial parameters
+maxEvent<-1
+thresh<-5
+
+for (i in 1:length(cams)){
+  #subset the DF by camera
+  tempDF<-filter(Meta, cam_num == cams[i])
+  tempDF
+  tempDF<-tempDF[order(tempDF$FileName),] #make sure in order of filename and not time
+  #now we have the subset; need to process using old code
+  
+  #calculate time differences for tempDF
+  MyDiffs<-diff(tempDF$DateTimeOriginal)#returns what looks like an empty variable in the environment window
+  MyDiffs<-as.numeric(MyDiffs) #now it shows up as numeric data
+  #Now let's see if we can assign images to events using this logic.  We will need to set the time threshold    to something very short since dates/times are messed up (camera reset). Try 5 seconds.
+  
+  #thresh<-5 #set a threshold for number of seconds between events
+  ev<-vector()
+  L<-length(tempDF$DateTimeOriginal)
+  
+    for(x in 1:L){
+      interval<-diff(tempDF$DateTimeOriginal)
+      ev<-1; Event_num<-numeric() 
+      #created new var called ev and set to 1, created empty numeric vector called Event_num. 
+      #Event_num will store the assigned event for each image
+    }       
+  cond<- interval > thresh #sets condition for assigning to a new event where minutes corresponds to thresh
+    if (i == 1) ev<-1 else ev<-maxEvent    
+    
+    for(z in 1:(L-1)){#this is where the problem is; resets event numbers
+      if(!cond[z]) ev<-ev else ev<-ev+1
+      Event_num<-c(Event_num,ev) 
+    }
+    Event<-c(maxEvent,Event_num)
+           
+    tempDF$Event<-Event
+    #newDF<-tempDF
+    #testing saving each DF
+    #name<-paste0("NewDF", i)
+    
+    if (i == 1) {
+      newDF <- tempDF} else {
+      newDF<- rbind(newDF, tempDF)
+    }
+    maxEvent<-(max(newDF$Event)+1)
+}
+   #this is working, but we need it to continue numbering the events consecutively between cameras
+     
+
+
+  #write.csv(tempDF,"~/Dropbox/Zooniverse_work/Kate/Images_by_event.csv")
+
+#last(tempDF$Event)
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+MyDiffs<-diff(Meta$DateTimeOriginal)#returns what looks like an empty variable in the environment window
+MyDiffs<-as.numeric(MyDiffs) #now it shows up as numeric data
+
+#Optional: now see if we can convert seconds to minutes, minutes to hours, hours to days
+#MyDiffs_Minutes<-MyDiffs/60
+#MyDiffs_Hours<-MyDiffs_Minutes/60
+#MyDiffs_Days<-MyDiffs_Hours/24
+
+#MyDiffs_Minutes
+```
+###Step 5 
+This seems to be working!  
+
+```{r}
+thresh<-60 #set a threshold for number of seconds between events
+ev<-vector()
+L <- length(Meta$DateTimeOriginal)
+
+for(i in 1:length(Meta$DateTimeOriginal)){
+     interval<-diff(Meta$DateTimeOriginal)
+     #now convert to minutes
+     
+     ev<-1; Event_num<-numeric() #created new var called ev and set to 1, created empty numeric vector called Event_num. Event_num will store the assigned event for each image
+   
+cond<- interval > thresh #sets condition for assigning to a new event where minutes corresponds to thresh
+   
+   for(i in 1:(L-1)){
+      if(!cond[i]) ev<-ev else ev<-ev+1
+      Event_num<-c(Event_num,ev)
+  }
+  Event<-c(1,Event_num)
+  
+
+```
+Now append the Event to the data frame csv to capture the event assignment for each image.
+```{R}
+Meta$Event<-Event
+```
+###Step 6
+Now export Meta for use in assigning images to "image numbers" in the zooniverse manifest style
+```{r}
+write.csv(Meta, "Images_by_event.csv")
+```
+
+###NOTE
+This does not work because it sorts by date and time, not by date and time per forest.
+
+  

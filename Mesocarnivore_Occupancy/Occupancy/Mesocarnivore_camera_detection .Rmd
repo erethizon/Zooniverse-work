@@ -1,0 +1,65 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+The goal of this notebook is to determine the number of meso carnivores that were detected at each of the gamge cameras 
+
+```{r}
+#Basic parameters 
+rm(list = ls())
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(tidyr)
+library(readr)
+
+#Upload the dataset 
+DF <- read_csv("Image_by_date.csv")
+
+
+str(DF)
+unique(DF$choice)
+
+DF$choice <- as.factor(DF$choice )
+```
+
+
+
+```{r}
+#Determine the number of obervations of mesocarnivores
+
+#seclet only the mesocarnivores 
+Mesocarnivores <- DF %>% filter(DF$choice == "COYOTE" | DF$choice == "FOXRED" | DF$choice == "FISHER" | DF$choice == "RACCOON" | DF$choice == "BOBCAT"  | DF$choice == "WEASEL") 
+
+MC_Num <- Mesocarnivores %>% group_by(choice,Camera) %>% summarise(
+     num = n()
+     
+)
+
+write.csv(MC_Num, "Num_Mesocarnivores_by_Camera.csv")
+
+
+cameras <- unique(Mesocarnivores$Camera)
+View(cams)
+
+cams <- unique(DF$Camera)
+View(cameas)
+
+n_distinct(DF$Camera)
+
+
+cameras <- n_distinct(Mesocarnivores$Camera)
+
+unique(Mesocarnivores$Camera)
+n_distinct(Mesocarnivores$choice)
+
+```
+
+
+
+
+
+
+

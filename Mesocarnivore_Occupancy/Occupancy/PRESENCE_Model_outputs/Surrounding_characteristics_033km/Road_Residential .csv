@@ -1,0 +1,6 @@
+"psi(Road + Residential),p(.)",,,,
+,estimate,std.error,,
+A1,psi.a1,:,46.442811,5628275.047
+A2,psi.Road_density_033km,:,0.088933,129183.2066
+A3,psi.Per_low_intensity_residentia,:,0.135175,134669.0235
+B1,P[109].b1,:,-3.348784,0.148405

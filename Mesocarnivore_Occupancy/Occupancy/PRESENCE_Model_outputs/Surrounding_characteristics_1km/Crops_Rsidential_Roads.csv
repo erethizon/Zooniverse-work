@@ -1,0 +1,6 @@
+"psi(Crops + Residential),p(.)",,,,
+,estimate,std.error,,
+A1,psi.a1,:,44.666916,-1.#IND00
+A2,psi.Per_Row_crops_1km,:,-16.23178,-1.#IND00
+A3,psi.Per_low_intensity_residentia,:,9.312181,-1.#IND00
+B1,P[109].b1,:,-3.291098,0.148554

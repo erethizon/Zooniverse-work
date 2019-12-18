@@ -1,0 +1,5 @@
+"psi(Total),p(.)",,,,
+,estimate,std.error,,
+A1,psi.a1,:,41.136547,-1.#IND00
+A2,psi.Per_Total_forest_1km,:,22.258261,-1.#IND00
+B1,P[109].b1,:,-3.291098,0.148554

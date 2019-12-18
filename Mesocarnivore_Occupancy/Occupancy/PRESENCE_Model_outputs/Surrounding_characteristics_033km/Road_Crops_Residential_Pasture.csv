@@ -1,0 +1,7 @@
+"psi(Road + Residential + Pasture),p(.)",,,,
+,estimate,std.error,,
+A1,psi.a1,:,46.442765,4874224.437
+A2,psi.Road_density_033km,:,0.088931,111875.7139
+A3,psi.Per_Pasture_hay_033km,:,-0.062377,109147.5601
+A4,psi.Per_low_intensity_residentia,:,0.135175,116626.782
+B1,P[109].b1,:,-3.348784,0.148405

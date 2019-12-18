@@ -1,0 +1,66 @@
+---
+title: "First pass at occupancy modeling with RPresence and Unmarked"
+output: html_notebook
+---
+
+##Introduction
+Working on occupancy modeling from camera trap data.
+
+
+## Step 1.
+Prep the workspace and load the data
+```{r}
+rm(list=ls())
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(unmarked)
+#install.packages("/Volumes/External Drive/Dropbox/R/Packages/RPresence_2.12.29.tar.gz", repos = NULL, type = "source") #to download the RPresence package
+#library(RPresence)
+library(readr)
+
+#DF <- read_csv("/Volumes/External Drive/Dropbox/R/Zooniverse_work/Fisher_Occupancy/Fisher_occupancy_datasheet.csv")
+DF <- read_csv("/Users/ebar/Dropbox/R/Zooniverse_work/Fisher_Occupancy/Fisher_occupancy_datasheet.csv")
+
+str(DF)
+glimpse(DF)
+```
+Clean up a bit by deleting X2 column
+
+```{r}
+DF<-DF[,-2]
+```
+These data are structured with camera number as the first column, and camera trap day as the next (109!) series of columns.  Each value in a cell is a 0 (not detected), 1(present, i.e. detected) or NA (camera was not out at that time)
+
+The remaining columns are the covariates that may help to explain species presence or absence. Presence indicates the presence of any of a set of mesocarnivore species (raccoon, bobcat, skunk, coyote, fox, fisher, weasel etc.)
+
+##Step 2.
+
+
+```{r}
+Occ.DF<-DF[,2:110]
+```
+
+In the case of our data, occ.data corresponds to the y matrix of an unmarked frame, and the df of site covarites is the remainder of DF.
+
+Put the site covariates into a DF, then combine with occupancy data and pass to unmarkedFrameOccu object.  
+
+```{r}
+OccCovariates<-DF[,111:138]
+OurData<-unmarkedFrameOccu(Occ.DF, siteCovs = OccCovariates)
+summary(OurData)
+
+```
+
+
+```{r}
+plot(OurData, panels = 4)
+mod1<-occu(~ 1 ~1, OurData)
+mod1
+```
+Now back transform
+```{r}
+#now get the estimates for detection
+backTransform(mod1['det'])
+```
+

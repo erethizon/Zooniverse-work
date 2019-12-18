@@ -1,0 +1,7 @@
+"psi(Deciduous + Mixed + Total),p(.)",,,,
+,estimate,std.error,,
+A1,psi.a1,:,44.703645,4695548.919
+A2,psi.Per_Deciduous_forest_033km,:,19.03157,2058024.406
+A3,psi.Per_Mixed_forest_033km,:,2.311816,340252.799
+A4,psi.Per_Total_forest,:,40.01362,4213700.233
+B1,P[109].b1,:,-3.348784,0.148405

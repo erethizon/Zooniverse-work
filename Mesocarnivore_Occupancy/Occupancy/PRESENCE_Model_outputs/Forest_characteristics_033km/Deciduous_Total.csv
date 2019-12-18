@@ -1,0 +1,6 @@
+"psi(Deciduous + Total),p(.)",,,,
+,estimate,std.error,,
+A1,psi.a1,:,44.711386,-1.#IND00
+A2,psi.Per_Total_forest,:,40.020603,-1.#IND00
+A3,psi.Per_Deciduous_forest_033km,:,19.034036,-1.#IND00
+B1,P[109].b1,:,-3.348784,0.148405

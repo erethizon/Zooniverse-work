@@ -1,0 +1,8 @@
+Surrounding characteristics 0.33 km 
+
+psi(Residential),p(.)
+
+                                          estimate    std.error
+A1   psi.a1                           :  46.442805  4874228.572047
+A2   psi.Per_low_intensity_residentia :   0.135175  116626.793118
+B1   P[109].b1                        :  -3.348784    0.148405

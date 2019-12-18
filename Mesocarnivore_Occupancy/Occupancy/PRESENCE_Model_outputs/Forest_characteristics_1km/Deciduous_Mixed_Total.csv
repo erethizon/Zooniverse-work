@@ -1,0 +1,6 @@
+"psi(Mixed + Total), p(.)",,,,
+,estimate,std.error,,
+A1,psi.a1,:,41.415386,365624.8683
+A2,psi.Per_Mixed_forest_1km,:,4.853346,257054.9347
+A3,psi.Per_Total_forest_1km,:,20.236468,204012.197
+B1,P[109].b1,:,-3.291098,0.148554

@@ -1,0 +1,45 @@
+---
+title: "Naïve Occupancy Final"
+output: html_notebook
+---
+Naive Occupancy is the percent of cameras at which a species occurs
+
+Use this code to calculate Naive Occupancy. 
+
+Load necessary packages and clear the environment
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(readr)
+library(lubridate)
+library(chron) #works with chronological objects like dates and times
+library(reshape) #restructures and aggregates data in a flexible way
+library(vegan) #ecological analysis
+library(plotrix) #visualize circular data
+library(ggplot2) #producing graphics
+library(maptools) #produce maps using GIS layers
+```
+
+Import the masterDF
+```{r}
+masterDF <- read_csv("~/Dropbox/Zooniverse_work/Kate/masterDF.csv")
+
+```
+
+Source functions from Wild.ID chapters
+```{r}
+source("TEAM library 1.7.R")
+```
+
+
+Naïve Occupancy Calculation
+```{r}
+mat<-f.matrix.creator(masterDF)
+naive_occu_2019<-naive(mat)
+
+#This code isn't quite right. I suspect this is a similar problem to the species accumulation curve where it is counting the events as individual cameras, which is making all the output values much smaller than when I calculated it by hand. 
+```
+

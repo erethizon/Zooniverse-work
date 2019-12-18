@@ -1,0 +1,55 @@
+---
+title: "Shannon and Simpson’s indices"
+author: "Erika"
+date: "4/25/2019"
+output: html_document
+---
+We'd like to cacluate Shannon and Simpon indices for the winter 2018-2019 camera trap data.
+
+Set up workspace
+```{r setup, include=FALSE}
+rm(list = ls())
+library(dplyr)
+library(ggplot2)
+library(readr)
+```
+
+Now load "raw" camera trap data
+```{r}
+DF <- read_csv("~/Dropbox/R/Zooniverse_work/Gus.csv")
+```
+Now get rid of the "NOTHINGHERE" and "SOMETHINGHERE" since they provide no species information.
+
+```{r}
+dump<-which(DF$choice == "NOTHINGHERE" | DF$choice == "SOMETHINGHERE" | DF$choice == "HUMAN")
+
+#now dump
+DF<-DF[-dump,]
+```
+Next, we need to create a matrix or df of sites on rows and species on columns with cells equal to # of events.
+
+Summarize by species and forest and return # of events.
+
+```{r}
+diversity<-DF %>% group_by(ForestName, choice) %>% summarize(
+	NumEvents = length(Camera)
+)
+```
+Now we need to format diversity for vegan.
+
+Use tidyr
+```{r}
+library(tidyr)
+divVegan<- spread(diversity, choice, NumEvents)
+```
+
+Now, for vegan, replace NA's with zero and also delete the first column.
+
+```{r}
+#replace NAs with zeros
+divVegan[is.na(divVegan)] <- 0
+#dump first column
+vegReady<-divVegan[,-1]
+```
+
+

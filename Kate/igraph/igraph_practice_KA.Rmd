@@ -1,0 +1,32 @@
+---
+title: "igraph_practice_KA.Rmd"
+output: html_document
+---
+
+Goal: The purpose of this R script is to practice using the igraph package. I learned about this technique from the ASM meetings in the summer of 2019. Noé de la Sancha used this package to predict a forest network with graph theory. 
+•	Graph theory- represent forest patches with nodes and connect nodes with lines called edges
+o	Nodes connected to a bunch of other nodes is called an edge
+o	Try to create a network via nodes 
+o	Certain forest patches are essential points in the network (cutpoints)
+
+Sancha said he is not yet sure how graph theory influences connectivity, but this could be helpful when determining the best path for movement within the A2A corridor. 
+
+Some important measurements include:
+o	Coalescence distance- minimum distance that organism would have to travel in order to get through the network 
+o	Average number of links
+o	Stepping stones
+o	Hubs
+o	Cutpoints
+
+•	Focal area of the nodes is valuable and will change patterns at regional scale
+•	Small forest remnants are important in maintaining connectivity
+•	Distance between nodes beyond dispersal capacity of many animals- need to account for target species 
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,357 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+#Basic Parameters 
+rm(list = ls())
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(tidyr)
+library(readr)
+
+#Load the dataset 
+DF <- read.csv("/Users/Donovan/Dropbox/Zooniverse_work/Fisher_Occupancy/Fisher_occupancy_datasheet.csv")
+
+#Remove the blank X column 
+DF$X <- NULL
+
+#Check the data 
+str(DF)
+
+
+```
+
+
+```{r}
+#Packages for occupancy 
+library(unmarked) # for occupancy models
+library(ggplot2) #for professional plots
+library(plyr) #to manipulate the data such as by filtering
+library(dplyr) #an update of plyr
+library(vegan) # a community ecology package 
+library(AICcmodavg) #for AICc ranking
+
+#  y is the site history
+testCam <- DF[45:70]
+
+yCam<-DF[2:110] 
+yCam
+
+#evars is the environmental variables
+evars<-DF[c(112:138)] 
+
+evars_1km <- DF[,116:127] 
+evars_033km <-DF[,128:140] 
+
+evars_character <- DF[c(113:115)]
+
+str(evars_1km)
+str(evars)
+str(evars_character)
+str(evars_033km)
+
+evars_character$Number.Camera.Days <- as.factor(evars_character$Number.Camera.Days )
+
+#Scaling the covariates 
+evars_scale <- scale(evars)
+evars_1km_scale <- scale(evars_1km[,1:13])
+evars_033km_scale <- scale(evars_033km[,1:13])
+
+     #Taking the scaled data and putting it into a dataframe  
+     evars_1km_df <- as.data.frame(evars_1km_scale)
+     evars_033km_df <- as.data.frame(evars_033km_scale)
+
+     #Write the scale datasets as new datasets 
+     write.csv(evars_1km_df,"Scaled_1km_data.csv") 
+     write.csv(evars_033km_df,"Scaled_033km_data.csv") 
+#Creating a combined  new dataset with the different pieces 
+#so that the library unmarked can work with them
+#Ex
+CamFrame <- unmarkedFrameOccu(y = yCam, siteCovs = evars_1km_df)
+summary(CamFrame)
+
+#Test without NA values 
+TEST_Frame <- unmarkedFrameOccu(y = testCam, siteCovs = evars_1km_df)
+summary(TEST_Frame)
+
+
+CamFrame_033km_scale<- unmarkedFrameOccu(y = yCam, siteCovs = evars_033km_df)
+summary(CamFrame_033km_scale)
+
+CamFrame_forest<- unmarkedFrameOccu(y = yCam, siteCovs = evars_character)
+summary(CamFrame_forest)
+```
+
+Creating the correlation matrix 
+```{r}
+#Pearson's correlation determination
+rm(list = ls())
+
+#All covariates
+Cor_1km <- cor(evars_1km, method = "pearson")
+
+#Datasets 
+Forest_characteristics_033km <- read.csv("Data/Forest_characteristics_033km.csv")
+Forest_characteristics_1km <- read_csv("Data/Forest_characteristics_1km.csv")
+Surrounding_characteristics_033km <- read_csv("Data/Surrounding_characteristics_033km.csv")
+Surrounding_characteristics_1km <- read_csv("Data/Surrounding_characteristics_1km.csv")
+
+#Forest characteristics 
+Cor_Forest_1km <- cor(Forest_characteristics_1km, method = "pearson")
+Cor_Forest_033km <- cor(Forest_characteristics_033km, method = "pearson")
+
+#Surrounding characteristics 
+Cor_Surrounding_1km <- cor(Surrounding_characteristics_1km, method = "pearson")
+Cor_Surrounding_033km <- cor(Surrounding_characteristics_033km, method = "pearson")
+
+
+```
+
+```{r}
+#In unmarked, the models are written as occ(~detection ~occupancy, data)
+#remember that psi is occupancy and p is detection
+
+#model 1
+#null   Psi(.)p(.)
+nullCams<-occu(~1~1,CamFrame_forest)
+nullCams
+
+pcamera_model <- occu(~1 ~Camera.Model, CamFrame_forest)
+pcamera_model
+
+
+#Test a model 
+#Number of camera days affecting detection Psi(.)p(Number.Camera.Days)
+pRoad_den_1km <- occu(~Number.Camera.Days ~1, CamFrame)
+pRoad_den_1km #the read out gives the code entered, an estimate of occupancy, detection, and AIC
+
+confint(pRoad_den_1km,type="det",level=0.85)
+
+#Model 2
+pForest_type<- occu(~Forest.Type ~1, CamFrame)
+pForest_type
+
+confint(pForest_type,type="det",level=0.85)
+
+
+#once you have a list of detection models with nice CI's and SE's, let's rank them
+pmodels<-list('psi(.)p(.)'=nullCams,'psi(.)p(pcamera_model)'=pcamera_model) #add your other models 
+pmodels
+Rank_detection <- aictab(cand.set=pmodels, second.ord=TRUE,sort=TRUE)
+
+
+test<- occu(~1 ~Per_Open_water_1km, CamFrame)
+confint(test, type="det", level=0.85)
+```
+
+Running the occupancy models for 1km buffers
+```{r}
+#1km buffer
+
+#null   Psi(.)p(.)
+nullCams<-occu(~1~1,CamFrame)
+nullCams
+
+######TESTING the models without NA's present 
+#null   Psi(.)p(.)
+nullCams<-occu(~1~1,TEST_Frame)
+nullCams
+
+backTransform(nullCams["det"])
+backTransform(nullCams["state"])
+
+yCam$X110 <- NULL
+
+#Open Water Model
+pOpenWater_1km<- occu(~1 ~Per_Open_water_1km, CamFrame)
+pOpenWater_1km
+confint(pOpenWater_1km, type="det", level=0.85)
+
+#Residential Model
+pPer_low_intensity_residential_1km<- occu(~1 ~Per_low_intensity_residential_1km, CamFrame)
+confint(pPer_low_intensity_residential_1km, type="det", level=0.85)
+
+#Deciduous forest model
+pPer_Deciduous_forest_1km<- occu(~1 ~Per_Deciduous_forest_1km, CamFrame)
+confint(pPer_Deciduous_forest_1km, type="det", level=0.85)
+
+#Evergreen forest model
+pPer_Evergreen_forest_1km<- occu(~1 ~Per_Evergreen_forest_1km, CamFrame)
+confint(pPer_Evergreen_forest_1km, type="det", level=0.85)
+
+#Grassland model
+pPer_Grasslands_herbaceous_1km<- occu(~1 ~Per_Grasslands_herbaceous_1km, CamFrame)
+confint(pPer_Grasslands_herbaceous_1km, type="det", level=0.85)
+
+#Pasture model
+pPer_Pasture_hay_1km<- occu(~1 ~Per_Pasture_hay_1km, CamFrame)
+confint(pPer_Pasture_hay_1km, type="det", level=0.85)
+
+#Crops model
+pPer_Row_crops_1km<- occu(~1 ~Per_Row_crops_1km, CamFrame)
+pPer_Row_crops_1km
+confint(pPer_Row_crops_1km, type="det", level=0.85)
+
+#Woody wetlands model
+pPer_Woodywetlands_1km<- occu(~1 ~Per_Woodywetlands_1km, CamFrame)
+confint(pPer_Woodywetlands_1km, type="det", level=0.85)
+
+#Emergent wetlands model
+pPer_Emergent_wetlands_1km<- occu(~1 ~Per_Emergent_wetlands_1km, CamFrame)
+confint(pPer_Emergent_wetlands_1km, type="det", level=0.85)
+
+#Road density model
+pRoad_density_1km<- occu(~1 ~Road_density_1km, CamFrame)
+pRoad_density_1km
+confint(pRoad_density_1km, type="det", level=0.85)
+
+coef(pRoad_density_1km, type = "state")
+names(pRoad_density_1km)
+vcov(pRoad_density_1km, type = "det")
+
+####Ranking the models #####
+pmodels_1km <- list('psi(.)p(.)'=nullCams,'psi(.)p(pOpenWater_1km)'=pOpenWater_1km,'psi(.)p(pPer_low_intensity_residential_1km)'=pPer_low_intensity_residential_1km,'psi(.)p(pPer_Deciduous_forest_1km)'=pPer_Deciduous_forest_1km,'psi(.)p(pPer_Evergreen_forest_1km)'=pPer_Evergreen_forest_1km,'psi(.)p(pRoad_density_1km)'=pRoad_density_1km,'psi(.)p(pPer_Grasslands_herbaceous_1km)'= pPer_Grasslands_herbaceous_1km,'psi(.)p(pPer_Pasture_hay_1km)'= pPer_Pasture_hay_1km,'psi(.)p(pPer_Row_crops_1km)'= pPer_Row_crops_1km, 'psi(.)p(pPer_Woodywetlands_1km)'= pPer_Woodywetlands_1km, 'psi(.)p(pPer_Woodywetlands_1km)'= pPer_Emergent_wetlands_1km)
+
+pmodels_1km
+
+Rank_detection_1km <- aictab(cand.set=pmodels_1km, second.ord=TRUE,sort=TRUE)
+
+write.csv(Rank_detection_1km, "Rank_detection_1km.csv")
+```
+
+Creating multi variable models at the 1km scale
+```{r}
+####Multi Variable Models####
+#Deciduous + Open water model
+p4_models<- occu(~1 ~Per_Deciduous_forest_1km, CamFrame)
+confint(p4_models, type="det", level=0.85)
+
+p4_models <- occu(~1 ~ Per_Deciduous_forest_1km + pRoad_density_1km, CamFrame )
+
+#Deciduous + Residential Model
+pDeciduous_residential_1km<- occu(~1 ~Per_Deciduous_forest_1km +Per_low_intensity_residential_1km, CamFrame)
+
+confint(pDeciduous_residential_1km, type="det", level=0.85)
+
+```
+
+
+
+Running the model for 0.33km buffers 
+```{r}
+#033km buffer
+
+#null   Psi(.)p(.)
+nullCam<-occu(~1~1,CamFrame_033km_scale)
+nullCam
+
+#Open Water Model
+pOpenWater_033km<- occu(~1 ~Per_Open_water_033km, CamFrame_033km_scale)
+confint(pOpenWater_1km, type="det", level=0.85)
+
+#Residential Model
+pPer_low_intensity_residential_033km<- occu(~1 ~Per_low_intensity_residential_033km, CamFrame_033km_scale)
+confint(pPer_low_intensity_residential_1km, type="det", level=0.85)
+
+#Deciduous forest model
+pPer_Deciduous_forest_033km<- occu(~1 ~Per_Deciduous_forest_033km, CamFrame_033km_scale)
+confint(pPer_Deciduous_forest_1km, type="det", level=0.85)
+
+#Evergreen forest model
+pPer_Evergreen_forest_033km<- occu(~1 ~Per_Evergreen_forest_033km, CamFrame_033km_scale)
+confint(pPer_Evergreen_forest_1km, type="det", level=0.85)
+
+#Grassland model
+pPer_Grasslands_herbaceous_033km<- occu(~1 ~Per_Grasslands_herbaceous_033km, CamFrame_033km_scale)
+confint(pPer_Grasslands_herbaceous_1km, type="det", level=0.85)
+
+#Pasture model
+pPer_Pasture_hay_033km<- occu(~1 ~Per_Pasture_hay_033km, CamFrame_033km_scale)
+confint(pPer_Pasture_hay_1km, type="det", level=0.85)
+
+#Crops model
+pPer_Row_crops_033km<- occu(~1 ~Per_Row_crops_033km, CamFrame_033km_scale)
+confint(pPer_Row_crops_1km, type="det", level=0.85)
+
+#Woody wetlands model
+pPer_Woodywetlands_033km<- occu(~1 ~Per_Woodywetlands_033km, CamFrame_033km_scale)
+confint(pPer_Woodywetlands_1km, type="det", level=0.85)
+
+#Emergent wetlands model
+pPer_Emergent_wetlands_033km<- occu(~1 ~Per_Emergent_wetlands_033km, CamFrame_033km_scale)
+confint(pPer_Emergent_wetlands_1km, type="det", level=0.85)
+
+#Road density model
+pRoad_density_033km<- occu(~1 ~Road_density_033km, CamFrame_033km_scale)
+confint(pRoad_density_1km, type="det", level=0.85)
+
+####Ranking the models #####
+pmodels_033km <- list('psi(.)p(.)'=nullCam,'psi(.)p(pOpenWater_033km)'=pOpenWater_033km,'psi(.)p(pPer_low_intensity_residential_033km)'=pPer_low_intensity_residential_033km,'psi(.)p(pPer_Deciduous_forest_033km)'=pPer_Deciduous_forest_033km,'psi(.)p(pPer_Evergreen_forest_033km)'=pPer_Evergreen_forest_033km,'psi(.)p(pRoad_density_033km)'=pRoad_density_033km,'psi(.)p(pPer_Grasslands_herbaceous_033km)'= pPer_Grasslands_herbaceous_033km,'psi(.)p(pPer_Pasture_hay_033km)'= pPer_Pasture_hay_033km,'psi(.)p(pPer_Row_crops_033km)'= pPer_Row_crops_033km, 'psi(.)p(pPer_Woodywetlands_033km)'= pPer_Woodywetlands_033km, 'psi(.)p(pPer_Emergent_wetlands_033km)'= pPer_Emergent_wetlands_033km) 
+
+pmodels_033km
+
+Rank_detection_033km <- aictab(cand.set=pmodels_033km, second.ord=TRUE,sort=TRUE)
+
+write.csv(Rank_detection_033km, "Rank_detection_033km.csv")
+```
+
+Running the occupancy model for character variables 
+```{r}
+#Forest type model
+
+#null   Psi(.)p(.)
+nullCamera <- occu(~1~1,CamFrame_forest)
+
+#Forest type model
+pForest.Type<- occu(~1 ~Forest.Type, CamFrame_forest)
+confint(pForest.Type, type="det", level=0.85)
+
+#Calculating the AIC of the model
+pmodels_forest <- list('psi(.)p(.)'=nullCamera,'psi(.)p(pForest.Type)'=pForest.Type)
+Rank_detection_forest <- aictab(cand.set=pmodels_forest, second.ord=TRUE,sort=TRUE)
+
+```
+
+Mesocarnivore summary data from the experiment 
+```{r}
+#Basic parameters 
+rm(list = ls())
+
+#Upload the dataset 
+data <- read.csv("~/Dropbox/Zooniverse_work/Gus.csv")
+
+
+#seclet only the mesocarnivores 
+Mesocarnivores <- data %>% filter(data$choice == "COYOTE" | data$choice == "FOXRED" | data$choice == "FISHER" | data$choice == "RACCOON" | data$choice == "BOBCAT"  | data$choice == "WEASEL") 
+
+
+#Determine the number of obervations of mesocarnivores
+MC_Num <- Mesocarnivores %>% group_by(ForestName,Camera) %>% summarise(
+     num = n()
+     
+)
+
+#add a row to sum number of observations 
+Mesocarnivores$ID <- 1
+
+#number of mesocarnivore species 
+species<-unique(Mesocarnivores$choice)
+
+View(species)
+str(Mesocarnivores)
+Mesocarnivores$choice <- as.character(Mesocarnivores$choice)
+
+Coyote <- select(Mesocarnivores$choice == "COYOTE")
+Num_species <- Mesocarnivores %>% select(choice, Camera, ForestName,ID) 
+) 
+
+unique(Num_species$Camera)
+
+
+write.csv(Mesocarnivores, "Mesocarnivores.csv")
+```
+

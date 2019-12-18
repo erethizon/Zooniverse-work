@@ -1,0 +1,8 @@
+Surrounding characteristics 1km 
+
+psi(Crops),p(.)
+
+                                          estimate    std.error
+A1   psi.a1                           :  44.844997   -1.#IND00
+A2   psi.Per_Row_crops_1km            : -17.160751   -1.#IND00
+B1   P[109].b1                        :  -3.291098    0.148554

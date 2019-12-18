@@ -1,0 +1,113 @@
+---
+title: "Shannon and Simpson’s indices"
+author: "Erika"
+date: "4/25/2019"
+output: html_document
+---
+We'd like to cacluate Shannon and Simpon indices for the winter 2018-2019 camera trap data.
+
+Set up workspace
+```{r setup, include=FALSE}
+rm(list = ls())
+library(dplyr)
+library(ggplot2)
+library(readr)
+```
+
+Now load "raw" camera trap data
+```{r}
+DF <- read_csv("~/Dropbox/Zooniverse_work/Kate/Gus.csv")
+```
+Now get rid of the "NOTHINGHERE" and "SOMETHINGHERE" since they provide no species information.
+
+```{r}
+dump<-which(DF$choice == "NOTHINGHERE" | DF$choice == "SOMETHINGHERE" | DF$choice == "HUMAN")
+
+#now dump
+DF<-DF[-dump,]
+```
+Next, we need to create a matrix or df of sites on rows and species on columns with cells equal to # of events.
+
+Summarize by species and forest and return # of events.
+
+```{r}
+diversity<-DF %>% group_by(ForestName, choice) %>% summarize(
+	NumEvents = length(Camera)
+)
+```
+Now we need to format diversity for vegan.
+
+Use tidyr
+```{r}
+library(tidyr)
+divVegan<- spread(diversity, choice, NumEvents)
+```
+
+Now, for vegan, replace NA's with zero and also delete the first column.
+
+```{r}
+#replace NAs with zeros
+divVegan[is.na(divVegan)] <- 0
+#dump first column
+vegReady<-divVegan[,-1]
+```
+
+Run the diversity function for shannon diveristy index (increases as diversity increases)
+```{r}
+div_shan<-diversity(vegReady, index = "shannon")
+div_shan
+```
+
+Do the same for the simpson's index (similarity index- take 1-S to find diversity index). Measurement of probability that any two randomly selected individuals from infinitely large community will belong to same species.
+```{r}
+div_simp<- diversity(vegReady, index = "simpson")
+div_simp
+```
+
+Plot the two indices, bar graph of all forest sites. Box plot for two forest types. 
+
+Create DF with forest name in one column and diversity in another. 
+```{r}
+library(tidyr)
+Forest<- unique(divVegan$ForestName)
+shanDiv<- as.data.frame(cbind(div_shan, Forest))
+
+```
+
+Plot bar graph of Shannon Index Diversity
+```{r}
+shanDiv$Type<- as.factor(c("D","P","D","D","P","P"))
+shanDiv$div_shan<- as.numeric(as.character(shanDiv$div_shan))
+ggplot(shanDiv, aes(x= Forest, y = div_shan, group = Type, color = Type)) + 
+     geom_col(position= "dodge")+ 
+     xlab("Forest") +
+     ylab("Shannon Diversity Index")
+     
+
+ggsave("Shannon_Diversity_Index.jpg", device= "jpg")
+```
+
+Do the same for Simpson's Index
+```{r}
+simpDiv<-as.data.frame(cbind(div_simp, Forest))
+simpDiv$Type<- as.factor(c("D","P","D","D","P","P"))
+
+simpDiv$div_simp<- as.numeric(as.character(simpDiv$div_simp))
+ggplot(simpDiv, aes(x= Forest, y = div_simp, group = Type, color = Type)) + 
+     geom_col(position= "dodge") +
+     xlab("Forest") +
+     ylab("Simpson's Diversity Index")
+
+ggsave("Simpson's_Diversity_Index.jpg", device = "jpg")
+```
+
+Calculations to find the standard deviation and mean for species richness in deciduous study sites. 
+```{r}
+specRich <- read_csv("~/Dropbox/Zooniverse_work/Kate/Species Richness Test.csv")
+
+specRich1<- specRich %>% summarise(
+     meanRich = mean(SR),
+     sd = sd(SR)
+)
+```
+

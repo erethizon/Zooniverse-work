@@ -1,0 +1,7 @@
+Forest characteristics 0.33km 
+
+psi(Total),p(.)
+                                          estimate    std.error
+A1   psi.a1                           :  45.042725  5462178.832790
+A2   psi.Per_Total_forest             :  40.319107  4901802.709439
+B1   P[109].b1                        :  -3.348784    0.148405

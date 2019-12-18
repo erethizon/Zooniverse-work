@@ -1,0 +1,122 @@
+---
+title: "Counting contributors"
+author: "Erika Barthelmess"
+date: "11/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This is code to count the number of contributors and identify the top contributors by week from a data set
+
+Set up the work space
+```{r}
+rm(list = ls())
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(lubridate)
+```
+Now pull in the data set
+
+```{r}
+#DF <- read_csv("/Volumes/External Drive/Dropbox/1Courses/ResearchGroup/2019-2020/Learning R/north-country-wild-classifications.10.31.2019.csv")
+
+library(readr)
+DF <- read_csv("~/Dropbox/R/NoCoWild/Data/north-country-wild-classifications (2).csv")
+```
+Now identify the workflows by first making workflow number a factor
+```{r}
+DF$workflow_id<-as.factor(DF$workflow_id)
+workflows<-levels(DF$workflow_id)
+```
+We want to now isolate to the second (current) workflow:
+
+```{r}
+DF2<-filter(DF, workflow_id == 12161)
+```
+Now let's get to the proper (most recent) workflow version from DF2
+```{r}
+DF2$workflow_version<-as.factor(DF2$workflow_version)
+levels(DF2$workflow_version)
+
+
+```
+So let's just get the classifications from workflow version 6.5
+```{r}
+DF3<-filter(DF2, workflow_version == 6.5)
+#could ask this to automatically choose the latest workflow version
+```
+Now let's sort out the users by making user name a factor and determining the levels of the factor
+```{r}
+DF3$user_name<-as.factor(DF3$user_name)
+levels(DF3$user_name)
+```
+Now lets group all the not logged in to the same id
+```{r}
+library(stringr)
+pattern<-"not-logged-in"
+replacement<-"not_logged_in"
+DF3$user_name<-str_replace_all(DF3$user_name,pattern,replacement)
+```
+
+
+Now let's set the dates as dates
+```{r}
+library(lubridate)
+DF3$created_at<-ymd_hms(DF3$created_at)
+#need to convert to ymd for simplicity but not sure how
+
+```
+Now let's summarize by user, using dplyr summarize
+```{r}
+UserEffort<-DF3 %>% group_by(user_name) %>% summarize(
+     NumClass = length(classification_id)
+)
+```
+And now let's try to break it down by week
+```{r}
+start_date<-min(DF3$created_at)
+stop_date<-max(DF3$created_at)
+period<-interval(start_date, stop_date)
+midpoint<-ymd_hms("2019-10-22 12:00:00")
+```
+How many days is that?
+```{r}
+num_days<-period/ddays()
+```
+Now break down by week
+61 days divided by 7 days per week = 8.7 weeks
+```{r}
+week1<-ymd("2019-10-22")
+week2<- week1+7
+week3<-week2+7
+week4<-week3+7
+week5<-week4+7
+week6<-week5+7
+week7<-week6+7
+week8<-week7+7
+
+
+DF3$week <- 1
+set<- which (DF3$created_at > week1 &DF3$created_at<week2)
+DF3$week[set]<-2
+
+set<- which (DF3$created_at > week2 &DF3$created_at<week3)
+DF3$week[set]<-3
+
+```
+Last chunk of code not working.  Need to identify those dates past the midpoint and assign them to week 2.  See forest ecology mid term project for ideas.
+
+
+How many observations per week?
+```{r}
+Num_obs_perweek<-DF3 %>% group_by(week) %>% summarize(
+     Obs = length(classification_id)
+)
+```
+

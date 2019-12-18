@@ -1,0 +1,56 @@
+---
+title: "Species Accumulation Curve"
+output: html_notebook
+---
+Species accumulation curve can indicate if we deployed an adequate sampling effort.
+
+Use this code to calculate species accumulation curve. 
+
+Load necessary packages and clear the environment
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(readr)
+library(lubridate)
+library(chron) #works with chronological objects like dates and times
+library(reshape) #restructures and aggregates data in a flexible way
+library(vegan) #ecological analysis
+library(plotrix) #visualize circular data
+library(ggplot2) #producing graphics
+library(maptools) #produce maps using GIS layers
+```
+
+Import the masterDF
+```{r}
+masterDF <- read_csv("~/Dropbox/Zooniverse_work/Kate/masterDF.csv")
+
+```
+
+Source functions from Wild.ID chapters in console
+```{r}
+source("TEAM library 1.7.R")
+```
+
+Species Accumulation
+```{r}
+#need to adjust code to change dates from character variables to as.date variables using mdy code
+accumulation<-acc.curve(masterDF, 2019.01)
+
+#There is a problem in this code that counts each photo as a camera trapping day.
+```
+
+Plot Species Accumulation Curve
+```{r}
+ggplot(accumulation, aes(x=Camera.trap.days, y=species)) +
+     geom_line(aes(y=species-sd), colour = "grey50", linetype= "dotted")+
+     geom_line(aes(y=species+sd), colour = "grey50", linetype= "dotted")+
+     geom_line() + ylab("Number of Species") + xlab("Camera Trap Days") +
+     theme_bw()+ geom_hline(yintercept = 17, color = "red")
+
+
+ggsave("Species_Accumulation.JPG", device = "jpg")
+```
+
