@@ -1,0 +1,116 @@
+---
+title: "Naive Occupancy and RAI"
+output: html_notebook
+---
+
+Naive Occupancy is the percent of cameras at which a species occurs
+
+Relative Abundance Index (RAI) is the camera trapping detection rate per species. This is at what percent of the "events" does the species occur. This will be calculated as events per camera trapping days
+
+```{r}
+rm(list = ls())
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readr)
+
+Gus <- read_csv("~/Dropbox/Zooniverse_work/Gus.csv")
+```
+
+Start with Naive Occupancy. Need to create a table displaying which forest each species belongs to. 
+
+Check how many unique species there are
+```{r}
+unique(Gus$choice)
+
+#Looks like there are 19 different species present. So we can get a naive occupancy for each species
+```
+
+Group by species per camera 
+
+```{r}
+Occupancy<- Gus %>% group_by (ForestName, choice) %>% summarise()
+```
+
+Filter out one species to see what camera it belongs to
+```{r}
+Bobcat_Occup<- filter(Occupancy, choice == "BOBCAT")
+NothingHere_Occup<- filter(Occupancy, choice == "NOTHINGHERE")
+Dog_Occup<- filter(Occupancy, choice == "DOMESTICDOG")
+Coyote_Occup<- filter(Occupancy, choice == "COYOTE")
+Porcupine_Occup<- filter(Occupancy, choice == "PORCUPINE")
+Turkey_Occup<- filter(Occupancy, choice == "TURKEY")
+OtherBird_Occup<- filter(Occupancy, choice == "OTHERBIRD")
+Grouse_Occup<- filter(Occupancy, choice == "GROUSERUFFED")
+Deer_Occup<- filter(Occupancy, choice == "DEERWHITETAILED")
+OtherMammal_Occup<- filter(Occupancy, choice == "OTHERSMALLMAMMAL")
+Something_Occup<- filter(Occupancy, choice == "SOMETHINGHERE")
+Fisher_Occup<- filter(Occupancy, choice == "FISHER")
+RedSquirrel_Occup<- filter(Occupancy, choice == "SQUIRRELRED")
+Human_Occup<- filter(Occupancy, choice == "HUMAN")
+GraySquirrel_Occup<- filter(Occupancy, choice == "SQUIRRELGRAY")
+RedFox_Occup<- filter(Occupancy, choice == "FOXRED")
+Hare_Occup<- filter(Occupancy, choice == "SNOWSHOEHARE")
+Raccoon_Occup<- filter(Occupancy, choice == "RACCOON")
+Weasel_Occup<- filter(Occupancy, choice == "WEASEL")
+```
+
+
+Now calculate which camera each species showed up in. This will be grouping by species and then camera.
+
+```{r}
+SpecOcc<- Gus %>% group_by (ForestName, Camera, choice) %>% summarise()
+
+SpecOcc_Coyote<- filter(SpecOcc, choice == "COYOTE")
+SpecOcc_Bobcat<- filter(SpecOcc, choice == "BOBCAT")
+SpecOcc_Nothing<- filter(SpecOcc, choice == "NOTHINGHERE")
+SpecOcc_Dog<- filter(SpecOcc, choice == "DOMESTICDOG")
+SpecOcc_Porc<- filter(SpecOcc, choice == "PORCUPINE")
+SpecOcc_Turk<- filter(SpecOcc, choice == "TURKEY")
+SpecOcc_OtherBird<- filter(SpecOcc, choice == "OTHERBIRD")
+SpecOcc_Grouse<- filter(SpecOcc, choice == "GROUSERUFFED")
+SpecOcc_Deer<- filter(SpecOcc, choice == "DEERWHITETAILED")
+SpecOcc_OtherMammal<- filter(SpecOcc, choice == "OTHERSMALLMAMMAL")
+SpecOcc_Something<- filter(SpecOcc, choice == "SOMETHINGHERE")
+SpecOcc_Fisher<- filter(SpecOcc, choice == "FISHER")
+SpecOcc_RS<- filter(SpecOcc, choice == "SQUIRRELRED")
+SpecOcc_Human<- filter(SpecOcc, choice == "HUMAN")
+SpecOcc_GS<- filter(SpecOcc, choice == "SQUIRRELGRAY")
+SpecOcc_RedFox<- filter(SpecOcc, choice == "FOXRED")
+SpecOcc_Hare<- filter(SpecOcc, choice == "SNOWSHOEHARE")
+SpecOcc_Raccoon<- filter(SpecOcc, choice == "RACCOON")
+SpecOcc_Weasel<- filter(SpecOcc, choice == "WEASEL")
+```
+
+This gives you an output for each individual species and which camera and forest they were detected at. Can make an excel spreadsheet that has the detection count and forest distribution.
+
+
+Now let's try to calculate RAI
+```{r}
+RAI<- Gus %>% group_by (Image1, ForestName, Camera, choice) %>% summarise()
+
+RAI_Coyote<- filter(RAI, choice == "COYOTE")
+RAI_Bobcat<- filter(RAI, choice == "BOBCAT")
+RAI_Nothing<- filter(RAI, choice == "NOTHINGHERE")
+RAI_Dog<- filter(RAI, choice == "DOMESTICDOG")
+RAI_Porc<- filter(RAI, choice == "PORCUPINE")
+RAI_Turk<- filter(RAI, choice == "TURKEY")
+RAI_OtherBird<- filter(RAI, choice == "OTHERBIRD")
+RAI_Grouse<- filter(RAI, choice == "GROUSERUFFED")
+RAI_Deer<- filter(RAI, choice == "DEERWHITETAILED")
+RAI_OtherMammal<- filter(RAI, choice == "OTHERSMALLMAMMAL")
+RAI_Something<- filter(RAI, choice == "SOMETHINGHERE")
+RAI_Fisher<- filter(RAI, choice == "FISHER")
+RAI_RS<- filter(RAI, choice == "SQUIRRELRED")
+RAI_Human<- filter(RAI, choice == "HUMAN")
+RAI_GS<- filter(RAI, choice == "SQUIRRELGRAY")
+RAI_RedFox<- filter(RAI, choice == "FOXRED")
+RAI_Hare<- filter(RAI, choice == "SNOWSHOEHARE")
+RAI_Raccoon<- filter(RAI, choice == "RACCOON")
+RAI_Weasel<- filter(RAI, choice == "WEASEL")
+```
+
+The above calculation is not actually RAI. It tells the number of events at which each species was detected. Next step is to take in data frame from excel spreadsheet and create code that will calculate the other values calculated in the 'Relative Abundance' section of that spreadsheet.
+
+
+

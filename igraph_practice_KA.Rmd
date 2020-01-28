@@ -1,0 +1,88 @@
+---
+title: "igraph_practice_KA.Rmd"
+output: html_document
+---
+
+Goal: The purpose of this R script is to practice using the igraph package. I learned about this technique from the ASM meetings in the summer of 2019. Noé de la Sancha used this package to predict a forest network with graph theory. 
+•	Graph theory- represent forest patches with nodes and connect nodes with lines called edges
+o	Nodes connected to a bunch of other nodes is called an edge
+o	Try to create a network via nodes 
+o	Certain forest patches are essential points in the network (cutpoints)
+
+Sancha said he is not yet sure how graph theory influences connectivity, but this could be helpful when determining the best path for movement within the A2A corridor. 
+
+Some important measurements include:
+o	Coalescence distance- minimum distance that organism would have to travel in order to get through the network 
+o	Average number of links
+o	Stepping stones
+o	Hubs
+o	Cutpoints
+
+•	Focal area of the nodes is valuable and will change patterns at regional scale
+•	Small forest remnants are important in maintaining connectivity
+•	Distance between nodes beyond dispersal capacity of many animals- need to account for target species 
+
+
+
+```{r}
+rm(list = ls())
+library(dplyr)
+library(readr)
+library(ggplot2)
+install.packages(igraph)
+library(igraph)
+library(maptools)
+```
+
+```{r}
+## A simple example with a couple of actors
+## The typical case is that these tables are read in from files....
+actors <- data.frame(name=c("Alice", "Bob", "Cecil", "David",
+                            "Esmeralda"),
+                     age=c(48,33,45,34,21),
+                     gender=c("F","M","F","M","F"))
+relations <- data.frame(from=c("Bob", "Cecil", "Cecil", "David",
+                               "David", "Esmeralda"),
+                        to=c("Alice", "Bob", "Alice", "Alice", "Bob", "Alice"),
+                        same.dept=c(FALSE,FALSE,TRUE,FALSE,FALSE,TRUE),
+                        friendship=c(4,5,5,2,1,1), advice=c(4,5,5,4,2,3))
+g <- graph_from_data_frame(relations, directed=TRUE, vertices=actors)
+print(g, e=TRUE, v=TRUE)
+
+V(g) #shows the number of vertices, the output from the 'name' row
+E(g) #shows the possible connections within the network 
+
+## The opposite operation
+as_data_frame(g, what="vertices")
+as_data_frame(g, what="edges")
+
+
+plot.igraph(g)
+#This displays a really cool graph of the network created from these two data frames!!!
+
+tkplot(g)
+#This displays an interactive graph that you can manipulate
+
+rglplot(g)
+#This displays a 3D graph that can be moved around in the space
+```
+
+
+Playing around with functions
+```{r}
+# Create new vertex attribute called 'gender'
+g <- set_vertex_attr(g, "gender", value = genders)
+
+# Create new vertex attribute called 'age'
+g <- set_vertex_attr(g, "age", value = 10)
+```
+
+
+
+Need to create a data frame showing the connections of the forest fragments within the A2A corridor.
+```{r}
+library(readr)
+DF <- read_csv("~/Dropbox/Zooniverse_work/Kate/igraph/igraph_practice_KA.csv")
+```
+
+

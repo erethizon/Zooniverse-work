@@ -215,13 +215,13 @@ howmany_votes <- grouped_classifications %>%
 ```{r}
 all_data <- full_join(species_votes, howmany_votes) %>% full_join(., multi_answer_votes)
 
-write.csv(final_dat, file = "cleaned_data.csv")
+#write.csv(final_dat, file = "cleaned_data.csv")
 ```
 
 ```{r}
 Bad_data <- filter(all_data, diff_species > 1)
 
-Bad_data_final <- Bad_data %>% group_by(subject_ids, votes) %>%   
+#Bad_data_final <- Bad_data %>% group_by(subject_ids, votes) %>%   
      
 
 Final_data <- all_data %>% group_by(subject_ids)
@@ -231,7 +231,177 @@ Final_data <- all_data %>% group_by(subject_ids)
 Good_data <- all_data %>% group_by(subject_ids) %>% summarise(
      votes = length(votes)
 )
-DF <- filter(Good_data, num_rows > 1) 
+#X <- filter(Good_data, num_rows > 1) 
+
 ```
+
+```{r}
+#Group<- all_data %>% group_by(all_data$subject_ids) %>% order_by(all_data$votes)
+```
+
+Import modified data frame
+```{r}
+Final_data <- read_csv("~/Dropbox/Zooniverse_work/Final_data.csv")
+```
+
+Match the forest type with subject ID
+```{r}
+Sifted_data<- DF[match(unique(DF$subject_ids), DF$subject_ids),]
+
+write.csv(Sifted_data, file = "Sifted_data.csv")
+```
+
+```{r}
+duplicated(Final_data$subject_ids)
+length(Final_data$subject_ids)
+
+
+```
+
+The final data frame did not contain dates. We need to add these in. 
+```{r}
+Metadata <- read.csv("~/Dropbox/Zooniverse_work/Game Camera Metadata Field Sheets 2019.csv")
+
+Metadata1<- select(Metadata, Date.Out, Date.Checked, SD.Card.Number, Unit.Number) 
+
+names(Metadata1)<- c("Date_Out", "Date_Checked", "SDCard", "Camera")
+
+
+```
+
+Import final dataset to add dates column. We need to add date in the field and date retrieved in order to calculate species accumulation curve. 
+```{r}
+Data_Clean_up <- read.csv("~/Dropbox/Statistical_Analysis/Data_Clean_up.csv")
+
+#Be sure the merging columns have the same names and are both characters
+
+Data_Clean_up$Camera<- as.character(Data_Clean_up$Camera)
+Data_Clean_up$SDCard<- as.character(Data_Clean_up$SDCard)
+
+joinedData <- left_join(Data_Clean_up, Metadata1, by=c("SDCard", "Camera"), type='right', match='all')
+
+write.csv(joinedData, file = "joinedData.csv")
+```
+
+This seemed to match the correct deployment and collection date for each subject_id. Now we can do a species accumulation curve. 
+
+#Species Accumulation Curve
+```{r}
+joinedData <- read.csv("~/Dropbox/Zooniverse_work/joinedData.csv")
+library(vegan)
+
+
+#Reformulate deployment dates so they are as.dates and they are in the same order for taking the difference later on
+joinedData$Date_Checked<- format(as.Date(joinedData$Date_Checked, format="%m/%d/%y"),"%y/%m/%d")
+
+joinedData$Date_Out<- format(as.Date(joinedData$Date_Out, format="%m/%d/%y"),"%y/%m/%d")
+
+#Calculate Camera Trap Days by taking the difference in Date_Out and Date_Checked data. 
+joinedData$Camera_Trap_Days<- difftime(joinedData$Date_Checked, joinedData$Date_Out , units = c("days"))
+
+unique(joinedData$Camera_Trap_Days)
+
+#Need to determine how many new species introduced with each additional camera trap day
+#Calculate species richness for each camera
+Camera_richness <- DF %>% group_by(ForestType, ForestName, Camera) %>% summarise(
+  Number_species = n_distinct(choice)
+  )
+
+#We only have 20 of our 24 cameras being represented in our dataset
+unique(Camera_richness$Camera)
+
+#pull in camera trap days per camera and first image in event
+Cam_Trap_Days<- select(joinedData, ForestName, Camera, Camera_Trap_Days, Image1, Date_Out, Date_Checked)
+
+Camera_richness1 <- left_join(Camera_richness, Cam_Trap_Days, by=c("ForestName", "Camera"), type='right', match='all')
+
+#This gives an output that has 931 observation of 5 variables. This has duplicates that we need to remove to get a dataset that has each camera with associated forest and number of camera trap days. 
+#Camera_richness2<- Camera_richness1[!duplicated(Camera_richness1$Camera, Camera_richness1$ForestName),]
+
+#Camera_richness2 has one row for each camera with the forest name, species richness, and camera trap days
+#Now calculate species accumulation curve
+#library(vegan)
+#Camera_richness2<- Camera_richness1[,1:5]=sapply(Camera_richness1[,1:5],as.numeric)
+#SpecAccum<- specaccum(Camera_richness2)
+
+#Problem here. Is it possible to calculate species accumulation curve wihen we cannot tell how many new species added each day?
+#Trial- add in event (subjectid data) and event date and calculate how many new species each day
+
+R1B1 <- read.csv("~/Dropbox/Zooniverse_work/UseThisCode/R1B1.csv")
+
+ImageDates<- select(R1B1, "FileName", "DateTimeOriginal")
+
+#names(ImageDates)<- c("Image1", "Image_Date")
+
+#ImageDates1<- select(Sifted_data, "Image1")
+
+#ImageDates2<- left_join(ImageDates, ImageDates1, by=c("Image1"), type='right', match='all')
+
+names(ImageDates)<- c("Image1", "DateTimeOriginal")
+
+ImageDates1<- inner_join(ImageDates, Cam_Trap_Days, by=c("Image1"), type='right', match='all')
+
+#ImageDates1 shows the first image per event with associated time of capture. This will hopefully allow us to determine how many new species we got per day. Still need to pull in choice per subject.
+
+#Isolate choices per event to join with the ImageDates1 dataset so we can see which species are selected per event
+Choice<- select(Data_Clean_up, "choice", "Image1")
+
+ImageDates2<- inner_join(ImageDates1, Choice, by=c("Image1"), type='right', match='all')
+
+write.csv(ImageDates2, file = "Gus.csv")
+
+#Calculate Species Accumulation Curve
+library(vegan)
+library(lubridate)
+ImageDates3$DateTimeOriginal<- ymd(ImageDates3$DateTimeOriginal)
+SpecAccum<- specaccum(ImageDates3, method = "exact", permutations = 100)
+plot(SpecAccum)
+```
+
+
+#Diversity
+```{r}
+div<-diversity(joinedData, index="shannon")
+```
+
+
+Calculations for richness per camera
+```{r}
+#This first part did not work for some reason, even though the code should be correct.
+#DF$Camera<-as.factor(DF$Camera)
+
+#Spec<- filter(DF, "Camera", "choice")
+
+#Species<- DF %>% group_by(Camera) %>% summarise(
+#     n_species = n_distinct(choice)
+#)
+
+
+Cam_3<- filter(DF, Camera == "3")
+Cam_4<- filter(DF, Camera == "4")
+Cam_8<- filter(DF, Camera == "8")
+Cam_9<- filter(DF, Camera == "9")
+Cam_11<- filter(DF, Camera == "11")
+Cam_14<- filter(DF, Camera == "14")
+Cam_15<- filter(DF, Camera == "15")
+Cam_17<- filter(DF, Camera == "17")
+Cam_18<- filter(DF, Camera == "18")
+Cam_21<- filter(DF, Camera == "21")
+Cam_22<- filter(DF, Camera == "22")
+Cam_24<- filter(DF, Camera == "24")
+Cam_25<- filter(DF, Camera == "25")
+Cam_28<- filter(DF, Camera == "28")
+Cam_29<- filter(DF, Camera == "29")
+Cam_31<- filter(DF, Camera == "31")
+Cam_32<- filter(DF, Camera == "32")
+Cam_33<- filter(DF, Camera == "33")
+```
+
+
+
+
+
+
+
 
 

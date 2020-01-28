@@ -1,0 +1,69 @@
+---
+title: "WildIDTesting"
+author: "Erika"
+date: "4/8/2019"
+output: html_document
+---
+We are trying to determine how to use the WildID code with our data.  We'll begin by downloading their data and code and trying to run it to see what different formats the data end up in.  The files we are using come from [here](https://www.dropbox.com/sh/5w4y6u7uq2mc2i3/AAClmRimVo00b6KKjLOxmO6Ca/Chapter%205?dl=0&subfolder_nav_tracking=1).
+
+
+
+Set up the workspace
+```{r}
+rm(list = ls())
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(tidyr)
+library(readr)
+
+setwd("~/Dropbox/R/Zooniverse_work/WildIDTesting/Chapter 5")
+source("~/Dropbox/R/Zooniverse_work/WildIDTesting/Chapter 5/TEAM library 1.7.R")
+#loads WildID team functions
+```
+
+Now install their required packages:
+```{r}
+library(chron)
+library(reshape2)
+library(vegan)
+library(plotrix)
+library(maptools)
+#library(ggplot2) they also add this one but we have it above
+```
+Now load the data
+```{r}
+team_data<-read.csv(file.choose(), sep =",", h = T)
+```
+
+Now add taxonomic information from IUCN
+```{r}
+iucn.full <-read.csv("~/Dropbox/R/Zooniverse_work/WildIDTesting/Chapter 5/IUCN.csv", sep = ",", h = T)
+```
+And now delimit to select groups
+```{r}
+iucn<-iucn.full[, c("Class", "Order", "Family", "Genus", "Species")]
+```
+And merge:
+```{r}
+team<-merge(iucn, team_data, all.y = T)
+```
+At this point, we've added the class, order, family info to the team_data.  We would NOT need to take these steps for our data.
+
+Now run the "fix.dta" function on team and see what you end up with. The resulting "data" df is the one that the future processing will happen on, so getting our data to a similar place will facilitate using their functions.
+
+```{r}
+data<-fix.dta(team)
+```
+This data set has 1 row per image, so "events" with 3 images include 3 rows.  It also has columns indentifying the camera # (sampling.unit.name), lat/long, taxonomic info, species choice, number of animals, camera start date/time in several formats, and the time/date for the image.
+
+Our data are formatted similarly, but not the same.  
+
+Their next step:
+
+
+
+
+
+
+
