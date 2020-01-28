@@ -5,10 +5,6 @@ date: "12/18/2019"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ## Introduction
 
 This is code to count the number of contributors and identify the top contributors by week from a data set
@@ -27,7 +23,7 @@ Now pull in the data set
 #DF <- read_csv("/Volumes/External Drive/Dropbox/1Courses/ResearchGroup/2019-2020/Learning R/north-country-wild-classifications.10.31.2019.csv")
 
 library(readr)
-DF <- read_csv("~/Dropbox/R/NoCoWild/Data/north-country-wild-classifications (2).csv")
+DF <- read_csv("~/Dropbox/R/NoCoWild/Data/north-country-wild-classifications.1.27.2020.csv")
 ```
 Now identify the workflows by first making workflow number a factor
 ```{r}
@@ -111,21 +107,47 @@ UserByWeek<-DF3 %>% group_by(week,userFactor) %>% summarise(
 )
 
 ```
-Now let's add the date of the first day of the week, with week beginning on a Sunday.  Here are some ideas
+Works to this point.  Now let's plot.
+```{r}
+ggplot(UserByWeek, aes(week, NumClass, group = userFactor))+
+     geom_col()
+```
+
+
+Now let's add the date of the last day of the week, with week ending on a Sunday.  Here are some ideas
 
 ```{r}
-DF3$startDay<-strptime(paste(year(DF3$created_at),DF3$week,7), format = "%Y %U %u")
+DF3$endDay<-strptime(paste(year(DF3$created_at),DF3$week,7), format = "%Y %U %u")
 ```
-And now breakdown by week but keep start date
+And now breakdown by week but keep end date
 ```{r}
-UserByWeek<-DF3 %>% group_by(as.factor(startDay),userFactor) %>% summarise(
+DF3$endDayFactor<-as.factor(DF3$endDay)
+UserByWeek<-DF3 %>% group_by(endDayFactor,userFactor, week) %>% summarise(
      NumClass = length(classification_id),
+     
 )
 
 ```
 Looks good.  
-Now try to filter by max user each week
+Now let's filter by week and max classifications per week to get final product.  Try `top_n` from dplyr.
+
 ```{r}
-mainClassifier<-UserByWeek %>% filter()
+MainContributers<-UserByWeek %>% group_by(week) %>% top_n(4,NumClass)
+```
+Now let's plot:
+Start by getting an actual date for start date
+```{r}
+MainContributers<-mutate(MainContributers,
+       Day = ymd(endDayFactor))
+```
+Now extract just 2020 data
+```{r}
+MainContributers<-filter(MainContributers, Day > "2019-12-31")
+```
+
+```{r}
+ggplot(MainContributers, aes(Day, NumClass, fill = userFactor))+
+     geom_col(position = "dodge")+
+     facet_wrap(~endDayFactor)
 ```
 
